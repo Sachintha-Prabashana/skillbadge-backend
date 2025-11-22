@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment variables (Secrets - NEVER PUSH THESE)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Compiled TypeScript code (We only push source code, not the build)
+dist/
+build/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories (Optional)
+.vscode/
+.idea/
