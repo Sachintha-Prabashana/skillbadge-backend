@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import dotenv from "dotenv"
 import { sign } from "crypto"
+import { AuthRequest } from "../middleware/auth"
 import { signAccessToken, signRefreshToken } from "../utils/tokens"
 
 
@@ -83,6 +84,23 @@ export const login = async (req: Request, res: Response) => {
     }
 }
 
+export const getMyProfile = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" })
+  }
+  const user = await User.findById(req.user.sub).select("-password")
+
+  if (!user) {
+    return res.status(404).json({
+      message: "User not found"
+    })
+  }
+
+  const { email, roles, _id } = user as IUser
+
+  res.status(200).json({ message: "ok", data: { id: _id, email, roles } })
+}
+
 export const refreshToken = async (req: Request, res: Response) => {
     try{
         const { token } = req.body
@@ -98,16 +116,25 @@ export const refreshToken = async (req: Request, res: Response) => {
         const user = await User.findById(payload.sub)
         if(!user) {
             return res.status(401).json(
-                { message: "Invalid refresh token" }
+                { message: "User not found" }
             )
         }
 
-        const accessToken = signAccessToken(user)
+        // --- SECURITY UPGRADE: Token Reuse Detection (Optional but Recommended) ---
+        // Ideally, you should check your DB here. 
+        // If 'token' is not the one currently saved in user.refreshToken, 
+        // it means it was already used/stolen -> Lock the account.
+        
+        // 3. Issue NEW tokens (Rotation)
+        const newAccessToken = signAccessToken(user)
+        const newRefreshToken = signRefreshToken(user)
+
 
         res.status(200).json({
             message: "Token refreshed successfully",
             data: {
-                accessToken
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken
             }
         })
 
