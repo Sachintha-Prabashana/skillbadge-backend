@@ -30,7 +30,7 @@ export const authenticate = (
     } catch (error) {
         console.error(error)
         return res.status(401).json(
-            { message: "Invalid token" }
+            { message: "Invalid token", error }
         )
     }
 }
