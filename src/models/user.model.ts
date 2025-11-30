@@ -14,6 +14,7 @@ export interface IUser extends Document {
     roles: Role[]
     points: number
     badges: mongoose.Types.ObjectId[]
+    completedChallenges: mongoose.Types.ObjectId[] // Track solved problems
 }
 
 const UserSchema = new Schema<IUser>({
@@ -26,6 +27,14 @@ const UserSchema = new Schema<IUser>({
     badges: [{ 
         type: Schema.Types.ObjectId,
         ref: "Badge" }],
+
+    // --- 2. Solved Challenges (Optimization) ---
+    // This allows you to check "Is Solved?" in O(1) time on the dashboard
+    completedChallenges: [{
+        type: Schema.Types.ObjectId,
+        ref: "Challenge"
+    }],
+
 }, {
     timestamps: true,
 

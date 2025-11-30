@@ -20,6 +20,7 @@ interface ITestCase {
 }
 
 export interface IChallenge extends Document {
+    _id: mongoose.Types.ObjectId; // <--- MAKE SURE THIS LINE EXISTS
   title: string;
   description: string; // The main problem text
   tips: string[];      // Hints for students

@@ -68,4 +68,49 @@ export const submitSolution = async (req: AuthRequest, res: Response) => {
     console.error("Execution Error:", error.message);
     res.status(500).json({ message: "Error executing code solution" });
   }
-};
+}
+
+export const getChallenges = async (req: AuthRequest, res: Response) => {
+    try{
+
+        const userId = req.user?.sub; // Get logged-in user ID
+        // 1. Fetch the user to see what they have completed
+        // We only need the 'completedChallenges' array
+        const user = await User.findById(userId).select("completedChallenges")
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // 3. Create a "Set" for O(1) instant lookup
+        // Turning [id1, id2, id3] into a Set makes checking "has(id)" extremely fast
+        const solvedSet = new Set(
+            user.completedChallenges.map((id) => id.toString())
+        );
+
+        // 4. Fetch the Challenge List
+        // Optimization: Exclude heavy fields (testCases, starterCode, description)
+        // We only fetch what the UI card needs.
+        const challenges = await Challenge.find().select("title difficulty points createdAt")
+            .sort({ createdAt: -1 })
+
+        // 5. Merge Data (The Magic Step)
+        // We loop through challenges and add the "status" field dynamically
+        const formattedChallenges = challenges.map((challenge) => ({
+            _id: challenge._id,
+            title: challenge.title,
+            difficulty: challenge.difficulty,
+            points: challenge.points,
+            // category: challenge.allowedLanguages?.[0] || "General", // or use tags if you added them
+
+            // CHECK: Is this challenge ID in the user's solved list?
+            status: solvedSet.has(challenge._id.toString()) ? "SOLVED" : "TODO"
+        }))
+
+        res.status(200).json(formattedChallenges);
+
+
+    }catch(err){
+        res.status(500).json({ message: "Error fetching challenges" });
+    }
+}

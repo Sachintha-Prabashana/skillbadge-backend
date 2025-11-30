@@ -1,6 +1,6 @@
 import { Router } from "express"
 import { createChallenge } from "../controllers/adminChallenge.controller"
-import { submitSolution } from "../controllers/submission.controller"
+import {getChallenges, submitSolution} from "../controllers/challenge.controller"
 import { authenticate } from "../middleware/auth"
 // import { authorize } from "../middleware/authorize"
 import { Role } from "../models/user.model"
@@ -15,6 +15,8 @@ challengeRouter.post(
     authorize([Role.ADMIN]), 
     createChallenge
 )
+
+challengeRouter.get("/",authenticate, getChallenges)
 
 // 2. Student submits code
 challengeRouter.post(
