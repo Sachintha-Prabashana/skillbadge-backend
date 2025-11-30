@@ -7,6 +7,7 @@ const RUNTIME_CONFIG: Record<string, { language: string; version: string }> = {
   typescript: { language: "typescript", version: "5.0.3" },
   python: { language: "python", version: "3.10.0" },
   java: { language: "java", version: "15.0.2" },
+    c: { language: "c", version: "10.2.0" },
   go: { language: "go", version: "1.16.2" }
 };
 
@@ -21,7 +22,9 @@ export const executeCode = async (language: string, code: string, input: string)
     const response = await axios.post("https://emkc.org/api/v2/piston/execute", {
       language: config.language,
       version: config.version,
-      files: [{ content: code }],
+      files: [
+          { content: code }
+      ],
       stdin: input, // Inject the test case input here
     });
 

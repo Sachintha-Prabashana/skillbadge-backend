@@ -114,3 +114,82 @@ export const getChallenges = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: "Error fetching challenges" });
     }
 }
+
+export const getChallengeById = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params
+
+        const challenge = await Challenge.findById(id)
+            // 2. SELECT SPECIFIC FIELDS
+            // - We NEED: description (markdown), starterCode (for editor)
+            // - We HIDE: testCases (answers). We only send test cases during the 'Run' phase or if they are public examples.
+            .select("-testCases.output -testCases.isHidden")
+
+        if (!challenge) {
+            return res.status(404).json({ message: "Challenge not found" });
+        }
+
+        res.status(200).json(challenge)
+
+    }catch(err){
+        console.error("Get Challenge Detail Error:", err)
+        res.status(500).json({ message: "Error fetching challenge" })
+    }
+}
+
+export const runCode = async (req: Request, res: Response) => {
+    try {
+        const {
+            challengeId,
+            code,
+            language
+        } = req.body
+
+        // 1. Fetch the Challenge (Include 'testCases' this time!)
+        const challenge = await Challenge.findById(challengeId)
+
+        if (!challenge) {
+            return res.status(404).json({ message: "Challenge not found" });
+        }
+
+        const results = []
+        let allPassed = true
+
+        // 3. Loop through EVERY test case
+        for (const testCase of challenge.testCases) {
+
+            // A. Run code on Piston
+            const pistonRes = await executeCode(language, code, testCase.input);
+
+            // B. Get Output (Handle potential errors)
+            const actualOutput = pistonRes.run.stdout ? pistonRes.run.stdout.trim() : "";
+            const errorOutput = pistonRes.run.stderr;
+            const expectedOutput = testCase.output.trim();
+
+            // C. Compare (The Grading Logic)
+            // If there is an error (stderr), it's automatically a fail
+            const isCorrect = !errorOutput && (actualOutput === expectedOutput);
+
+            if (!isCorrect) allPassed = false;
+
+            // D. Add to result list
+            results.push({
+                input: testCase.input,
+                expectedOutput: testCase.output, // Send back so user knows what failed
+                actualOutput: errorOutput || actualOutput, // Show error if crash, else stdout
+                passed: isCorrect,
+                isHidden: testCase.isHidden // Frontend can use this to hide data if needed
+            });
+        }
+
+        // 4. Send Result
+        res.status(200).json({
+            status: allPassed ? "PASSED" : "FAILED",
+            results
+        });
+
+    } catch (error: any) {
+        console.error("Execution Error:", error.message);
+        res.status(500).json({ message: "Error executing code" });
+    }
+}
