@@ -1,8 +1,13 @@
 import { Router } from "express"
 import { createChallenge } from "../controllers/adminChallenge.controller"
-import {getChallengeById, getChallenges, runCode, submitSolution} from "../controllers/challenge.controller"
+import {
+    generateAIChallenge,
+    getChallengeById,
+    getChallenges,
+    runCode,
+    submitSolution
+} from "../controllers/challenge.controller"
 import { authenticate } from "../middleware/auth"
-// import { authorize } from "../middleware/authorize"
 import { Role } from "../models/user.model"
 import { requireRole as authorize } from "../middleware/role"
 
@@ -28,6 +33,8 @@ challengeRouter.post(
     authenticate, 
     submitSolution
 )
+
+challengeRouter.post("/generate-ai", authenticate, authorize([Role.ADMIN]), generateAIChallenge)
 
 // POST /api/challenges/run
 // Protected route because we don't want bots spamming the compiler

@@ -9,7 +9,7 @@ const RUNTIME_CONFIG: Record<string, { language: string; version: string }> = {
   java: { language: "java", version: "15.0.2" },
     c: { language: "c", version: "10.2.0" },
   go: { language: "go", version: "1.16.2" }
-};
+}
 
 export const executeCode = async (language: string, code: string, input: string) => {
   const config = RUNTIME_CONFIG[language.toLowerCase()];
@@ -33,4 +33,4 @@ export const executeCode = async (language: string, code: string, input: string)
     console.error("Piston API Error:", error);
     throw new Error("Code execution service failed");
   }
-};
+}

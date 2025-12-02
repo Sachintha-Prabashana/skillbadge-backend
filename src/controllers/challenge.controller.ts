@@ -3,6 +3,7 @@ import { Challenge } from "../models/challenge.model"
 import { User } from "../models/user.model"
 import { AuthRequest } from "../middleware/auth"
 import { executeCode } from "../utils/piston"
+import {generateChallengeWithAI} from "../utils/ai";
 
 export const submitSolution = async (req: AuthRequest, res: Response) => {
   try {
@@ -137,13 +138,14 @@ export const getChallengeById = async (req: Request, res: Response) => {
     }
 }
 
-export const runCode = async (req: Request, res: Response) => {
+export const runCode = async (req: AuthRequest, res: Response) => {
     try {
         const {
             challengeId,
             code,
             language
         } = req.body
+        const userId = req.user?.sub; // Get logged-in user ID (if any)
 
         // 1. Fetch the Challenge (Include 'testCases' this time!)
         const challenge = await Challenge.findById(challengeId)
@@ -182,14 +184,44 @@ export const runCode = async (req: Request, res: Response) => {
             });
         }
 
+        // --- 4. THE NEW PART: SAVE TO DB ---
+        if (allPassed && userId) {
+            // We use $addToSet to ensure we don't add the same challenge ID twice
+            // We check if the user has ALREADY solved it to avoid giving double points
+            const user = await User.findById(userId);
+
+            // Check if this challenge ID is NOT in the completed list yet
+            const isFirstTime = !user?.completedChallenges.includes(challengeId);
+
+            if (isFirstTime) {
+                await User.findByIdAndUpdate(userId, {
+                    $addToSet: { completedChallenges: challengeId }, // Add ID to array
+                    $inc: { points: challenge.points } // Add XP points
+                });
+            }
+        }
         // 4. Send Result
         res.status(200).json({
             status: allPassed ? "PASSED" : "FAILED",
             results
-        });
+        })
 
     } catch (error: any) {
         console.error("Execution Error:", error.message);
-        res.status(500).json({ message: "Error executing code" });
+        res.status(500).json({ message: "Error executing code" })
+    }
+}
+
+export const generateAIChallenge = async (req: Request, res: Response) => {
+    try {
+        const { topic } = req.body
+        if (!topic) return res.status(400).json({ message: "Topic is required" })
+
+        const generatedData = await generateChallengeWithAI(topic)
+
+        res.status(200).json(generatedData)
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({ message: "AI Generation Failed" })
     }
 }
