@@ -5,6 +5,7 @@ import cors from 'cors'
 
 import authRouter from "./routes/auth"
 import challengeRouter from './routes/challenge';
+import userRouter from "./routes/user";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use(
 
 app.use("/api/v1/auth", authRouter)
 app.use("/api/v1/challenges", challengeRouter)
+app.use("/api/v1/users", userRouter)
 
 mongoose
   .connect(MONGO_URI)
