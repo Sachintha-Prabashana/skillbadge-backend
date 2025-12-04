@@ -15,6 +15,10 @@ export interface IUser extends Document {
     points: number
     badges: mongoose.Types.ObjectId[]
     completedChallenges: mongoose.Types.ObjectId[] // Track solved problems
+
+    currentStreak: number
+    longestStreak: number // Optional: good for "Personal Best"
+    lastSolvedDate?: Date  // To calculate if streak continues or resets
 }
 
 const UserSchema = new Schema<IUser>({
@@ -34,6 +38,11 @@ const UserSchema = new Schema<IUser>({
         type: Schema.Types.ObjectId,
         ref: "Challenge"
     }],
+
+    // --- STREAK LOGIC FIELDS ---
+    currentStreak: { type: Number, default: 0 },
+    longestStreak: { type: Number, default: 0 },
+    lastSolvedDate: { type: Date } // Nullable initially
 
 }, {
     timestamps: true,

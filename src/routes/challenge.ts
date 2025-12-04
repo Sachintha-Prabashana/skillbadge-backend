@@ -4,12 +4,12 @@ import {
     generateAIChallenge,
     getChallengeById,
     getChallenges,
-    runCode,
     submitSolution
 } from "../controllers/challenge.controller"
 import { authenticate } from "../middleware/auth"
 import { Role } from "../models/user.model"
 import { requireRole as authorize } from "../middleware/role"
+import {runCode} from "../controllers/submission.controller";
 
 const challengeRouter = Router();
 
