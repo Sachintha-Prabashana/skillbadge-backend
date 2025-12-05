@@ -1,5 +1,7 @@
 import { Request, Response} from "express"
 import { User } from "../models/user.model"
+import { AuthRequest } from "../middleware/auth";
+import {Submission} from "../models/submission.model";
 
 export const getLeaderboard = async (req: Request, res: Response) => {
     try {
@@ -23,5 +25,35 @@ export const getLeaderboard = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Leaderboard Error:", error);
         res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+}
+
+export const getUserProfile = async (req: AuthRequest, res: Response) => {
+    try {
+        // if param is "me", use the logges-in ID . otherwise use the requested ID
+        const targetId = req.params.id === "me" ? req.user?.sub : req.params.id
+
+        const user = await User.findById(targetId)
+            .select("-password")
+            .populate("badges")
+
+        if (!user) return res.status(404).json({ message: "User not found" })
+
+        // 2. Fetch Submission Stats (Count by difficulty)
+        // (This requires looking up the Challenge difficulty for every submission)
+        // For MVP efficiency, we will just count total submissions for now.
+        const totalSubmissions = await Submission.countDocuments({ user: targetId })
+
+        const rank = await User.countDocuments({ points: { $gt: user.points } }) + 1
+
+        res.status(200).json({
+            ...user.toObject(),
+            totalSubmissions,
+            rank
+        })
+
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch user profile" })
+
     }
 }
