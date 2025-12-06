@@ -2,6 +2,7 @@ import { Request, Response} from "express"
 import { User } from "../models/user.model"
 import { AuthRequest } from "../middleware/auth";
 import {Submission} from "../models/submission.model";
+import {uploadToCloudinary} from "../utils/cloudinary";
 
 export const getLeaderboard = async (req: Request, res: Response) => {
     try {
@@ -54,6 +55,34 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
 
     } catch (error) {
         res.status(500).json({ message: "Failed to fetch user profile" })
+
+    }
+}
+
+export const uploadProfilePicture = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user?.sub
+
+        if (!req.file) {
+            return res.status(400).json({ message: "No image file provided" })
+        }
+
+        const imageUrl = await uploadToCloudinary(req.file.buffer)
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { avatarUrl: imageUrl },
+            { new: true } // Return the updated document
+        ).select("-password")
+
+        res.status(200).json({
+            message: "Profile picture updated successfully",
+            data: updatedUser
+        })
+
+    } catch (error) {
+        console.error("Upload Error:", error)
+        res.status(500).json({ message: "Failed to upload profile picture" })
 
     }
 }

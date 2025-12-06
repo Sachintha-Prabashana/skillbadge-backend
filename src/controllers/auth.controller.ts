@@ -96,9 +96,9 @@ export const getMyProfile = async (req: AuthRequest, res: Response) => {
     })
   }
 
-  const { email, roles, _id } = user as IUser
+  const { email, roles, _id, firstname, lastname, points } = user as IUser
 
-  res.status(200).json({ message: "ok", data: { id: _id, email, roles } })
+  res.status(200).json({ message: "ok", data: { id: _id, email, roles, firstname, lastname, points } })
 }
 
 export const refreshToken = async (req: Request, res: Response) => {
