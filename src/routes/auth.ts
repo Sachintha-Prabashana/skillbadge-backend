@@ -1,6 +1,8 @@
 import { Router } from "express"
 import { registerStudent, login, refreshToken, getMyProfile } from "../controllers/auth.controller"
 import { authenticate } from "../middleware/auth"
+import passport from "passport";
+import {generateTokens} from "../utils/tokens";
 
 
 const router = Router()
@@ -10,5 +12,31 @@ router.post("/register", registerStudent)
 router.post("/login", login)
 router.get("/me", authenticate, getMyProfile)
 router.post("/refresh", refreshToken)
+
+// --- 1. Start Login Flow ---
+// Frontend redirects here -> Server redirects to Google
+router.get(
+    "/google",
+    passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+// --- 2. Google Callback ---
+// Google redirects back here with code -> Server creates tokens -> Redirects to Frontend
+router.get(
+    "/google/callback",
+    passport.authenticate("google", { session: false, failureRedirect: "/login" }),
+    (req, res) => {
+        // If execution reaches here, user is successfully authenticated
+        const user: any = req.user;
+
+        // Generate JWTs using your existing helper
+        // Assuming your generateTokens returns { accessToken, refreshToken }
+        const { accessToken, refreshToken } = generateTokens(user);
+
+        // Redirect to React App with tokens in URL
+        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+        res.redirect(`${clientUrl}/auth-success?token=${accessToken}&refresh=${refreshToken}`);
+    }
+);
 
 export default router

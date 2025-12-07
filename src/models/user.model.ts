@@ -13,6 +13,7 @@ export interface IUser extends Document {
     password: string
     roles: Role[]
     avatarUrl?: string
+    googleId?: string; // <--- ADD THIS
     points: number
     badges: mongoose.Types.ObjectId[]
     completedChallenges: mongoose.Types.ObjectId[] // Track solved problems
@@ -26,12 +27,13 @@ const UserSchema = new Schema<IUser>({
     firstname: { type: String, required: true },
     lastname: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true },
+    password: { type: String, required: false },
     roles: { type: [String], enum: Object.values(Role), default: [Role.STUDENT] },
     avatarUrl: {
         type: String,
         default: "" // Default to empty string or a placeholder URL
     },
+    googleId: { type: String },
     points: { type: Number, default: 0, min: 0 },
     badges: [{ 
         type: Schema.Types.ObjectId,

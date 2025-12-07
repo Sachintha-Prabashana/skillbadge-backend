@@ -30,3 +30,12 @@ export const signRefreshToken = (user: IUser): string => {
         }
     )
 }
+
+// 2. wrapper Function (Used by Google Auth & Login)
+// This creates both tokens in one go
+export const generateTokens = (user: IUser) => {
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+
+    return { accessToken, refreshToken };
+}

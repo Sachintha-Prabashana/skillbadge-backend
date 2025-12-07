@@ -51,12 +51,19 @@ export const login = async (req: Request, res: Response) => {
         const existingUser = ( await User.findOne({ email })) as IUser | null
 
         if (!existingUser) {
-            return res.status(400).json({ message: "Invalid email or password" })
+            return res.status(400).json({ message: "Invalid credentials" })
+        }
+
+        // --- NEW CHECK: Detect Google Users ---
+        if (!existingUser.password) {
+            return res.status(400).json({
+                message: "This account uses Google. Please sign in with the Google button."
+            })
         }
 
         const valid = await bcrypt.compare(password, existingUser.password)
         if (!valid) {
-            return res.status(400).json({ message: "Invalid email or password" })
+            return res.status(400).json({ message: "Password mismatch" })
         }
 
         /////////////////// Generate JWT Token Here ///////////////////
@@ -96,9 +103,9 @@ export const getMyProfile = async (req: AuthRequest, res: Response) => {
     })
   }
 
-  const { email, roles, _id, firstname, lastname, points } = user as IUser
+  const { email, roles, _id, firstname, lastname, points, avatarUrl } = user as IUser
 
-  res.status(200).json({ message: "ok", data: { id: _id, email, roles, firstname, lastname, points } })
+  res.status(200).json({ message: "ok", data: { id: _id, email, roles, firstname, lastname, points, avatarUrl } })
 }
 
 export const refreshToken = async (req: Request, res: Response) => {

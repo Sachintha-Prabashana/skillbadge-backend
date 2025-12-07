@@ -6,6 +6,10 @@ import cors from 'cors'
 import authRouter from "./routes/auth"
 import challengeRouter from './routes/challenge';
 import userRouter from "./routes/user";
+import passport from "passport";
+
+// 👇 IMPORTANT: You MUST import the config file here so the code inside it runs!
+import "./config/passport";
 
 dotenv.config();
 
@@ -24,6 +28,7 @@ app.use(
     
 )
 
+app.use(passport.initialize())
 app.use("/api/v1/auth", authRouter)
 app.use("/api/v1/challenges", challengeRouter)
 app.use("/api/v1/users", userRouter)
