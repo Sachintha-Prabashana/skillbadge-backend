@@ -37,6 +37,29 @@ router.get(
         const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
         res.redirect(`${clientUrl}/auth-success?token=${accessToken}&refresh=${refreshToken}`);
     }
-);
+)
+
+// 1. Start GitHub Login
+router.get(
+    "/github",
+    passport.authenticate("github", { scope: ["user:email"] })
+)
+
+// 2. GitHub Callback
+router.get(
+    "/github/callback",
+    passport.authenticate("github", { session: false, failureRedirect: "/login" }),
+    (req, res) => {
+        // User is logged in
+        const user: any = req.user;
+
+        // Generate Tokens
+        const { accessToken, refreshToken } = generateTokens(user);
+
+        // Redirect to Frontend
+        const clientUrl = "http://localhost:5173";
+        res.redirect(`${clientUrl}/auth-success?token=${accessToken}&refresh=${refreshToken}`);
+    }
+)
 
 export default router

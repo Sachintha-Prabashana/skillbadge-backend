@@ -14,6 +14,7 @@ export interface IUser extends Document {
     roles: Role[]
     avatarUrl?: string
     googleId?: string; // <--- ADD THIS
+    githubId?: string;
     points: number
     badges: mongoose.Types.ObjectId[]
     completedChallenges: mongoose.Types.ObjectId[] // Track solved problems
@@ -34,6 +35,7 @@ const UserSchema = new Schema<IUser>({
         default: "" // Default to empty string or a placeholder URL
     },
     googleId: { type: String },
+    githubId: { type: String },
     points: { type: Number, default: 0, min: 0 },
     badges: [{ 
         type: Schema.Types.ObjectId,
