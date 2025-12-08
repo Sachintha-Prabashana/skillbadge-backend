@@ -1,7 +1,8 @@
 import { Request, Response} from "express"
 import { User } from "../models/user.model"
 import { AuthRequest } from "../middleware/auth";
-import {Submission} from "../models/submission.model";
+import {Submission, SubmissionStatus} from "../models/submission.model";
+import { Challenge } from "../models/challenge.model";
 import {uploadToCloudinary} from "../utils/cloudinary";
 
 export const getLeaderboard = async (req: Request, res: Response) => {
@@ -31,31 +32,107 @@ export const getLeaderboard = async (req: Request, res: Response) => {
 
 export const getUserProfile = async (req: AuthRequest, res: Response) => {
     try {
-        // if param is "me", use the logges-in ID . otherwise use the requested ID
-        const targetId = req.params.id === "me" ? req.user?.sub : req.params.id
+        const targetId = req.params.id === "me" ? req.user?.sub : req.params.id;
 
-        const user = await User.findById(targetId)
-            .select("-password")
-            .populate("badges")
+        // 1. Fetch Basic User Info
+        const user = await User.findById(targetId).select("-password").populate("badges");
+        if (!user) return res.status(404).json({message: "User not found"});
 
-        if (!user) return res.status(404).json({ message: "User not found" })
+        // 2. Calculate Rank (Simple logic: count users with more points)
+        const rank = await User.countDocuments({points: {$gt: user.points}}) + 1;
 
-        // 2. Fetch Submission Stats (Count by difficulty)
-        // (This requires looking up the Challenge difficulty for every submission)
-        // For MVP efficiency, we will just count total submissions for now.
-        const totalSubmissions = await Submission.countDocuments({ user: targetId })
+        // 3. AGGREGATION: Solved Breakdown (Easy/Medium/Hard)
+        // We group by 'difficulty' field in Submissions
+        const solvedStats = await Submission.aggregate([
+            {$match: {user: user._id, status: SubmissionStatus.PASSED}}, // Only count accepted
+            {
+                $lookup: { // Join with Challenges to get difficulty
+                    from: "challenges",
+                    localField: "challenge",
+                    foreignField: "_id",
+                    as: "challengeInfo"
+                }
+            },
+            {$unwind: "$challengeInfo"},
+            {$group: {_id: "$challengeInfo.difficulty", count: {$sum: 1}}}
+        ]);
 
-        const rank = await User.countDocuments({ points: { $gt: user.points } }) + 1
+        // Format the result: [{_id: 'Easy', count: 5}, ...] -> { Easy: 5, Medium: 2 ... }
+        const solvedMap: any = {EASY: 0, MEDIUM: 0, HARD: 0};
+        solvedStats.forEach(s => solvedMap[s._id] = s.count);
 
-        res.status(200).json({
-            ...user.toObject(),
-            totalSubmissions,
-            rank
-        })
+        // 4. Get Total Counts of All Challenges (for the denominator)
+        const totalEasy = await Challenge.countDocuments({difficulty: "EASY"});
+        const totalMedium = await Challenge.countDocuments({difficulty: "MEDIUM"});
+        const totalHard = await Challenge.countDocuments({difficulty: "HARD"});
+
+        // 5. AGGREGATION: Languages & Skills
+        // Group submissions by 'language'
+        const languageStats = await Submission.aggregate([
+            {$match: {user: user._id, status: SubmissionStatus.PASSED}},
+            {$group: {_id: "$language", count: {$sum: 1}}},
+            {$sort: {count: -1}}
+        ]);
+
+        // 6. Recent Activity (Last 5 Submissions)
+        const recentActivity = await Submission.find({user: user._id})
+            .sort({createdAt: -1})
+            .limit(5)
+            .populate("challenge", "title slug");
+
+        // 7. Heatmap Data (Calendar)
+        const heatmapRaw = await Submission.aggregate([
+            {$match: {user: user._id}},
+            {
+                $group: {
+                    _id: {$dateToString: {format: "%Y-%m-%d", date: "$createdAt"}},
+                    count: {$sum: 1}
+                }
+            }
+        ]);
+        const calendar: Record<string, number> = {};
+        heatmapRaw.forEach(item => {
+            calendar[item._id] = item.count
+        });
+
+        // --- FINAL RESPONSE ---
+        res.json({
+            username: user.firstname + " " + user.lastname,
+            rank: rank,
+            avatarUrl: user.avatarUrl,
+
+            // Data for ProgressSection
+            solved: {
+                total: solvedMap.EASY + solvedMap.MEDIUM + solvedMap.HARD,
+                totalQuestions: totalEasy + totalMedium + totalHard,
+                easy: solvedMap.EASY,
+                medium: solvedMap.MEDIUM,
+                hard: solvedMap.HARD,
+                totalEasy,
+                totalMedium,
+                totalHard
+            },
+
+            // Data for ProfileSidebar
+            languages: languageStats.map(l => ({name: l._id, problems: l.count})),
+
+            // Data for HeatmapSection
+            submissionCalendar: calendar,
+
+            // Data for BadgesSection
+            badges: user.badges || [],
+
+            // Data for RecentActivitySection
+            recentActivity: recentActivity.map(sub => ({
+                title: (sub.challenge as any).title,
+                time: sub.createdAt,
+                status: sub.status // "ACCEPTED", "WRONG_ANSWER"
+            }))
+        });
 
     } catch (error) {
-        res.status(500).json({ message: "Failed to fetch user profile" })
-
+        console.error(error);
+        res.status(500).json({message: "Server error"});
     }
 }
 

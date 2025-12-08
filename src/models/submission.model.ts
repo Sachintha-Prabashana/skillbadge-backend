@@ -15,6 +15,8 @@ export interface ISubmission extends Document {
     passedCases: number;
     totalCases: number;
     pointsEarned: number;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 const SubmissionSchema = new Schema<ISubmission>({
