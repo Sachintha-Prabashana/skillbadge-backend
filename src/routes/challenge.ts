@@ -2,7 +2,7 @@ import { Router } from "express"
 import { createChallenge } from "../controllers/adminChallenge.controller"
 import {
     generateAIChallenge,
-    getChallengeById,
+    getChallengeById, getChallengeHint,
     getChallenges,
     submitSolution
 } from "../controllers/challenge.controller"
@@ -38,6 +38,8 @@ challengeRouter.post("/generate-ai", authenticate, authorize([Role.ADMIN]), gene
 
 // POST /api/challenges/run
 // Protected route because we don't want bots spamming the compiler
-challengeRouter.post("/run", authenticate, runCode);
+challengeRouter.post("/run", authenticate, runCode)
+
+challengeRouter.post("/:id/hint", authenticate, getChallengeHint)
 
 export default challengeRouter

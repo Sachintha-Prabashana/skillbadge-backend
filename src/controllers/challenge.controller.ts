@@ -4,6 +4,7 @@ import { User } from "../models/user.model"
 import { AuthRequest } from "../middleware/auth"
 import { executeCode } from "../utils/piston"
 import {generateChallengeWithAI} from "../utils/ai";
+import {generateHint} from "../service/ai.service";
 
 export const submitSolution = async (req: AuthRequest, res: Response) => {
     try {
@@ -165,5 +166,53 @@ export const generateAIChallenge = async (req: Request, res: Response) => {
     } catch (error) {
         console.error(error)
         res.status(500).json({ message: "AI Generation Failed" })
+    }
+}
+
+const HINT_COST = 5
+export const getChallengeHint = async (req: AuthRequest, res: Response) => {
+    try{
+        const userId = req.user?.sub;
+        const { id } = req.params; // Challenge ID
+        const { code, language } = req.body; // User's current code
+
+        if (!code) {
+            return res.status(400).json({ message: "Code is required to generate a hint." })
+        }
+
+        const user = await User.findById(userId)
+        const challenge = await Challenge.findById(id)
+
+        if (!user || !challenge) {
+            return res.status(404).json({ message: "User or Challenge not found" })
+        }
+
+        if (user.points < HINT_COST) {
+            return res.status(403).json({
+                message: `Not enough XP! You need ${HINT_COST} XP to ask for a hint.`,
+                currentPoints: user.points
+            })
+        }
+
+        const hint = await generateHint(
+            challenge.title,
+            challenge.description,
+            code,
+            language
+        )
+
+        user.points -= HINT_COST
+        await user.save()
+
+        // 5. Return Success
+        res.json({
+            hint,
+            remainingPoints: user.points,
+            message: `Hint generated! -${HINT_COST} XP`
+        })
+
+    } catch (err) {
+        console.error("Get Challenge Hint Error:", err)
+        res.status(500).json({ message: "Server error while generating hint." })
     }
 }
