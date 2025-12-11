@@ -163,3 +163,53 @@ export const uploadProfilePicture = async (req: AuthRequest, res: Response) => {
 
     }
 }
+
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user?.sub
+        const {
+            firstname,
+            lastname,
+            title,
+            about,
+            country,
+            socials,
+            education
+        } = req.body
+
+        // Validation (Optional but recommended)
+        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            {
+                $set: {
+                    firstname,
+                    lastname,
+                    title,
+                    about,
+                    country,
+                    socials,    // Replaces the socials object
+                    education   // Replaces the education array
+
+                }
+            }, {
+                new: true, // Return the updated document
+                runValidators: true
+            }
+        ).select("-password")
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            message: "Profile updated successfully",
+            user: updatedUser
+        });
+
+    } catch (error) {
+        console.error("Update Profile Error:", error);
+        res.status(500).json({ message: "Internal server error" })
+    }
+}

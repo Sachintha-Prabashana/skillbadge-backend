@@ -5,6 +5,19 @@ export enum Role {
     STUDENT = "STUDENT",
 }
 
+interface IEducation {
+    school: string
+    degree: string
+    fieldOfStudy: string
+    description?: string
+}
+
+interface ISocials {
+    github?: string
+    linkedin?: string
+    website?: string
+}
+
 export interface IUser extends Document {
     _id: mongoose.Types.ObjectId
     firstname?: string
@@ -15,9 +28,18 @@ export interface IUser extends Document {
     avatarUrl?: string
     googleId?: string; // <--- ADD THIS
     githubId?: string;
+
+    title: string
+    about: string
+    country: string
+
+    socials: ISocials
+    education: IEducation[]
+
     points: number
     badges: mongoose.Types.ObjectId[]
     completedChallenges: mongoose.Types.ObjectId[] // Track solved problems
+
 
     currentStreak: number
     longestStreak: number // Optional: good for "Personal Best"
@@ -36,6 +58,27 @@ const UserSchema = new Schema<IUser>({
     },
     googleId: { type: String },
     githubId: { type: String },
+
+    // --- NEW FIELDS ---
+    title: { type: String, default: "" },
+    about: { type: String, default: "" },
+    country: { type: String, default: "" },
+
+    socials: {
+        github: { type: String, default: "" },
+        linkedin: { type: String, default: "" },
+        website: { type: String, default: "" },
+        twitter: { type: String, default: "" }
+    },
+
+    education: [{
+        school: { type: String, required: true },
+        degree: { type: String },
+        fieldOfStudy: { type: String },
+        description: { type: String }
+    }],
+
+
     points: { type: Number, default: 0, min: 0 },
     badges: [{ 
         type: Schema.Types.ObjectId,

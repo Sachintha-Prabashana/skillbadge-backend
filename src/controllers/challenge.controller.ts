@@ -208,6 +208,7 @@ export const getChallengeHint = async (req: AuthRequest, res: Response) => {
         res.json({
             hint,
             remainingPoints: user.points,
+            cost: HINT_COST,
             message: `Hint generated! -${HINT_COST} XP`
         })
 
