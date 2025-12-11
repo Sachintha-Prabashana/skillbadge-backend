@@ -100,6 +100,14 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
             username: user.firstname + " " + user.lastname,
             rank: rank,
             avatarUrl: user.avatarUrl,
+            points: user.points,
+
+            // --- NEW PROFILE FIELDS ---
+            title: user.title || "Student Developer",
+            about: user.about || "",
+            country: user.country || "Earth",
+            socials: user.socials,
+            education: user.education,
 
             // Data for ProgressSection
             solved: {
