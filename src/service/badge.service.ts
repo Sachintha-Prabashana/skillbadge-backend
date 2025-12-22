@@ -21,17 +21,14 @@ export const checkAndAwardBadges = async (userId: string) => {
 
         switch (badge.criteriaType) {
             case "POINTS":
-                // e.g. Reach 100 XP
                 if (user.points >= badge.criteriaValue) isEligible = true;
                 break;
 
             case "SOLVED_TOTAL":
-                // e.g. Solve 5 problems
                 if (user.completedChallenges.length >= badge.criteriaValue) isEligible = true;
                 break;
 
             case "STREAK":
-                // e.g. 7 Day Streak
                 if (user.currentStreak >= badge.criteriaValue) isEligible = true;
                 break;
         }

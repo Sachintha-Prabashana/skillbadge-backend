@@ -4,6 +4,8 @@ import { AuthRequest } from "../middleware/auth";
 import {Submission, SubmissionStatus} from "../models/submission.model";
 import { Challenge } from "../models/challenge.model";
 import {uploadToCloudinary} from "../utils/cloudinary";
+import {BADGE_MANIFEST} from "../config/seeds/badgeManifest";
+import {checkAndAwardBadges} from "../service/badge.service";
 
 export const getLeaderboard = async (req: Request, res: Response) => {
     try {
@@ -29,24 +31,46 @@ export const getLeaderboard = async (req: Request, res: Response) => {
         res.status(500).json({ message: "Failed to fetch leaderboard" });
     }
 }
-
 export const getUserProfile = async (req: AuthRequest, res: Response) => {
     try {
         const targetId = req.params.id === "me" ? req.user?.sub : req.params.id;
 
+        // await checkAndAwardBadges(targetId);
+
         // 1. Fetch Basic User Info
-        const user = await User.findById(targetId).select("-password").populate("badges");
+        // Note: We use lean() to get a plain JS object, making it easier to modify 'badges'
+        const user = await User.findById(targetId).select("-password").populate("badges").lean();
+
         if (!user) return res.status(404).json({message: "User not found"});
 
-        // 2. Calculate Rank (Simple logic: count users with more points)
+        // --- 🟢 NEW: BADGE HYDRATION LOGIC ---
+        // We merge the DB data with the Manifest data
+        const enrichedBadges = (user.badges || []).map((userBadge: any) => {
+            // Find the visual details in the manifest based on the badge name
+            // (Assuming userBadge has a .name property or is the badge object itself)
+            const badgeName = userBadge.name || userBadge;
+            const manifestData = BADGE_MANIFEST.find(b => b.name === badgeName);
+
+            if (!manifestData) return userBadge; // Fallback if not found in manifest
+
+            return {
+                ...userBadge, // Keep DB data (like _id, dateEarned)
+                // Add Visual Data from Manifest:
+                displayName: manifestData.name,
+                description: manifestData.description,
+                icon: manifestData.icon,      // e.g., "Flame"
+                color: manifestData.color,    // e.g., "text-red-500"
+            };
+        })
+
+        // 2. Calculate Rank
         const rank = await User.countDocuments({points: {$gt: user.points}}) + 1;
 
-        // 3. AGGREGATION: Solved Breakdown (Easy/Medium/Hard)
-        // We group by 'difficulty' field in Submissions
+        // 3. AGGREGATION: Solved Breakdown
         const solvedStats = await Submission.aggregate([
-            {$match: {user: user._id, status: SubmissionStatus.PASSED}}, // Only count accepted
+            {$match: {user: user._id, status: SubmissionStatus.PASSED}},
             {
-                $lookup: { // Join with Challenges to get difficulty
+                $lookup: {
                     from: "challenges",
                     localField: "challenge",
                     foreignField: "_id",
@@ -57,30 +81,28 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
             {$group: {_id: "$challengeInfo.difficulty", count: {$sum: 1}}}
         ]);
 
-        // Format the result: [{_id: 'Easy', count: 5}, ...] -> { Easy: 5, Medium: 2 ... }
         const solvedMap: any = {EASY: 0, MEDIUM: 0, HARD: 0};
         solvedStats.forEach(s => solvedMap[s._id] = s.count);
 
-        // 4. Get Total Counts of All Challenges (for the denominator)
+        // 4. Get Total Counts
         const totalEasy = await Challenge.countDocuments({difficulty: "EASY"});
         const totalMedium = await Challenge.countDocuments({difficulty: "MEDIUM"});
         const totalHard = await Challenge.countDocuments({difficulty: "HARD"});
 
-        // 5. AGGREGATION: Languages & Skills
-        // Group submissions by 'language'
+        // 5. AGGREGATION: Languages
         const languageStats = await Submission.aggregate([
             {$match: {user: user._id, status: SubmissionStatus.PASSED}},
             {$group: {_id: "$language", count: {$sum: 1}}},
             {$sort: {count: -1}}
         ]);
 
-        // 6. Recent Activity (Last 5 Submissions)
+        // 6. Recent Activity
         const recentActivity = await Submission.find({user: user._id})
             .sort({createdAt: -1})
             .limit(5)
             .populate("challenge", "title slug");
 
-        // 7. Heatmap Data (Calendar)
+        // 7. Heatmap Data
         const heatmapRaw = await Submission.aggregate([
             {$match: {user: user._id}},
             {
@@ -101,15 +123,12 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
             rank: rank,
             avatarUrl: user.avatarUrl,
             points: user.points,
-
-            // --- NEW PROFILE FIELDS ---
             title: user.title || "Student Developer",
             about: user.about || "",
             country: user.country || "Earth",
             socials: user.socials,
             education: user.education,
 
-            // Data for ProgressSection
             solved: {
                 total: solvedMap.EASY + solvedMap.MEDIUM + solvedMap.HARD,
                 totalQuestions: totalEasy + totalMedium + totalHard,
@@ -121,20 +140,16 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
                 totalHard
             },
 
-            // Data for ProfileSidebar
             languages: languageStats.map(l => ({name: l._id, problems: l.count})),
-
-            // Data for HeatmapSection
             submissionCalendar: calendar,
 
-            // Data for BadgesSection
-            badges: user.badges || [],
+            // ✅ Return the ENRICHED badges, not the raw DB ones
+            badges: enrichedBadges,
 
-            // Data for RecentActivitySection
             recentActivity: recentActivity.map(sub => ({
                 title: (sub.challenge as any).title,
                 time: sub.createdAt,
-                status: sub.status // "ACCEPTED", "WRONG_ANSWER"
+                status: sub.status
             }))
         });
 

@@ -3,8 +3,9 @@ import { AuthRequest } from "../middleware/auth";
 import { Challenge } from "../models/challenge.model";
 import { User } from "../models/user.model";
 import { Submission, SubmissionStatus } from "../models/submission.model";
+import { DailyChallenge } from "../models/dailyChallenge.model"; // <--- 1. IMPORT THIS
 import { executeCode } from "../utils/piston";
-import {checkAndAwardBadges} from "../service/badge.service";
+import { checkAndAwardBadges } from "../service/badge.service";
 
 
 export const runCode = async (req: AuthRequest, res: Response) => {
@@ -44,7 +45,7 @@ export const runCode = async (req: AuthRequest, res: Response) => {
         // --- 3. DATABASE UPDATES ---
         if (userId) {
 
-            // A. Save Submission History (Audit Log)
+            // A. Save Submission History
             await Submission.create({
                 user: userId,
                 challenge: challengeId,
@@ -63,29 +64,54 @@ export const runCode = async (req: AuthRequest, res: Response) => {
                 const user = await User.findById(userId);
 
                 if (user) {
-                    // --- STREAK CALCULATION ---
-                    const today = new Date().setHours(0,0,0,0);
-                    const lastSolved = user.lastSolvedDate ? new Date(user.lastSolvedDate).setHours(0,0,0,0) : 0;
-                    const oneDay = 24 * 60 * 60 * 1000;
+                    // --- 🟢 START: DAILY CHALLENGE STREAK LOGIC ---
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todaysDaily = await DailyChallenge.findOne({ date: todayStr });
 
-                    if (today - lastSolved === oneDay) {
-                        user.currentStreak += 1; // Consecutive day
-                    } else if (today !== lastSolved) {
-                        user.currentStreak = 1; // Missed a day or first time
+                    // We also keep track of generic "Last Solved" for consistency
+                    const lastSolvedStr = user.lastSolvedDate
+                        ? new Date(user.lastSolvedDate).toISOString().split('T')[0]
+                        : null;
+
+                    // 1. Check if this is THE Daily Challenge
+                    if (todaysDaily && todaysDaily.challenge.toString() === challengeId) {
+
+                        // Only award streak/bonus if they haven't solved it today
+                        if (lastSolvedStr !== todayStr) {
+                            user.currentStreak += 1;
+
+                            // Update Personal Best
+                            if (user.currentStreak > user.longestStreak) {
+                                user.longestStreak = user.currentStreak;
+                            }
+
+                            // Give Bonus XP for Daily
+                            user.points += 10;
+
+                            // Mark today as active
+                            user.lastSolvedDate = new Date();
+                        }
                     }
-                    // (If today === lastSolved, streak stays the same)
+                        // 2. Fallback: If it's NOT the daily challenge, do you still want to update "lastSolvedDate"?
+                    // Usually yes, to show they were active.
+                    else if (lastSolvedStr !== todayStr) {
+                        user.lastSolvedDate = new Date();
+                        // Note: We typically DON'T increment streak here if you only want
+                        // streaks for the Daily Challenge.
+                        // If you want streaks for ANY problem, uncomment below:
+                        // user.currentStreak += 1;
+                    }
 
-                    user.lastSolvedDate = new Date();
 
-                    // --- POINTS CALCULATION ---
-                    // Check if already solved (prevent double points)
+
+                    // --- STANDARD POINTS CALCULATION ---
                     const alreadySolved = user.completedChallenges.some(
                         (id) => id.toString() === challengeId
                     );
 
                     if (!alreadySolved) {
                         user.completedChallenges.push(challengeId as any);
-                        user.points += challenge.points;
+                        user.points += challenge.points; // Standard challenge points
                     }
 
                     await user.save();
@@ -95,15 +121,13 @@ export const runCode = async (req: AuthRequest, res: Response) => {
                 }
             }
 
-            // 4. Return Final Response
             return res.json({
                 status,
                 results,
-                newBadges // Send this to Frontend to show the "Badge Unlocked" Popup
+                newBadges
             });
         }
 
-        // Guest User Response
         return res.json({ status, results });
 
     } catch (error: any) {

@@ -5,6 +5,7 @@ import { AuthRequest } from "../middleware/auth"
 import { executeCode } from "../utils/piston"
 import {generateChallengeWithAI} from "../utils/ai";
 import {generateHint} from "../service/ai.service";
+import {DailyChallenge} from "../models/dailyChallenge.model";
 
 export const submitSolution = async (req: AuthRequest, res: Response) => {
     try {
@@ -92,29 +93,59 @@ export const getChallenges = async (req: AuthRequest, res: Response) => {
             user.completedChallenges.map((id) => id.toString())
         );
 
-        // 3. Get Total Count (Required for "Page X of Y" UI)
+        // 3. Get Total Count
         const totalChallenges = await Challenge.countDocuments();
 
         // 4. Fetch The Actual Data (Paginated)
-        const challenges = await Challenge.find()
+        // 👇 Changed 'const' to 'let' so we can modify it
+        let challenges = await Challenge.find()
             .select("title difficulty points allowedLanguages createdAt")
             .sort({ createdAt: -1 })
-            .skip(skip)   // <--- THIS WAS MISSING
-            .limit(limit) // <--- THIS WAS MISSING
-            .lean();      // <--- Best practice for read-only lists
+            .skip(skip)
+            .limit(limit)
+            .lean();
 
-        // 5. Merge Data
+        // --- 🟢 5. NEW: PIN DAILY CHALLENGE TO TOP (Page 1 Only) ---
+        if (page === 1) {
+            const today = new Date().toISOString().split('T')[0];
+            const dailyRecord = await DailyChallenge.findOne({ date: today });
+
+            if (dailyRecord) {
+                const dailyIdStr = dailyRecord.challenge.toString();
+
+                // A. Check if the daily challenge is ALREADY in this page's list
+                const existingIndex = challenges.findIndex(c => c._id.toString() === dailyIdStr);
+
+                if (existingIndex > -1) {
+                    // CASE 1: It's in the list (e.g., index 3). Move it to index 0.
+                    const [item] = challenges.splice(existingIndex, 1); // Remove it
+                    challenges.unshift(item); // Add to top
+                } else {
+                    // CASE 2: It's NOT in the list (e.g., it's on Page 5). Fetch & Inject it.
+                    const dailyData = await Challenge.findById(dailyRecord.challenge)
+                        .select("title difficulty points allowedLanguages createdAt") // Must match fields above
+                        .lean();
+
+                    if (dailyData) {
+                        challenges.unshift(dailyData); // Add to top
+                    }
+                }
+            }
+        }
+
+
+        // 6. Merge Data & Map Status
         const formattedChallenges = challenges.map((challenge) => ({
             _id: challenge._id,
             title: challenge.title,
             difficulty: challenge.difficulty,
             points: challenge.points,
-            // Fallback to first language or 'General' if you don't have tags
             category: challenge.allowedLanguages?.[0] || "General",
+            // Logic works for pinned item too because we solvedSet.has(challenge._id)
             status: solvedSet.has(challenge._id.toString()) ? "SOLVED" : "TODO"
         }));
 
-        // 6. Return Data + Pagination Info
+        // 7. Return Data
         res.status(200).json({
             data: formattedChallenges,
             pagination: {
@@ -217,3 +248,45 @@ export const getChallengeHint = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: "Server error while generating hint." })
     }
 }
+
+export const getRandomUnsolvedChallenge = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user?.sub;
+        const user = await User.findById(userId).select("completedChallenges");
+        const solvedIds = user?.completedChallenges || [];
+
+        // 1. Try to find an UNSOLVED challenge
+        let randomChallenge = await Challenge.aggregate([
+            { $match: { _id: { $nin: solvedIds } } },
+            { $sample: { size: 1 } }
+        ]);
+
+        // 2. Fallback: If they solved everything
+        if (!randomChallenge.length) {
+            // Pick ANY challenge safely
+            const fallback = await Challenge.findOne();
+
+            // Safety check: Database is completely empty?
+            if (!fallback) {
+                return res.status(404).json({ message: "No challenges in system." });
+            }
+
+            // Return with a specific flag 'allSolved: true'
+            return res.status(200).json({
+                allSolved: true, // <--- Flag for Frontend
+                message: "You have solved all available challenges!",
+                _id: fallback._id
+            });
+        }
+
+        // 3. Normal Case
+        res.status(200).json({
+            allSolved: false,
+            _id: randomChallenge[0]._id
+        });
+
+    } catch (error) {
+        console.error("Random error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};

@@ -3,13 +3,14 @@ import { createChallenge } from "../controllers/adminChallenge.controller"
 import {
     generateAIChallenge,
     getChallengeById, getChallengeHint,
-    getChallenges,
+    getChallenges, getRandomUnsolvedChallenge,
     submitSolution
 } from "../controllers/challenge.controller"
 import { authenticate } from "../middleware/auth"
 import { Role } from "../models/user.model"
 import { requireRole as authorize } from "../middleware/role"
-import {runCode} from "../controllers/submission.controller";
+import { runCode } from "../controllers/submission.controller";
+import { getDailyChallengeId } from "../controllers/daily.challenge.controller";
 
 const challengeRouter = Router();
 
@@ -22,6 +23,8 @@ challengeRouter.post(
 )
 
 challengeRouter.get("/",authenticate, getChallenges)
+
+challengeRouter.get("/random", authenticate, getRandomUnsolvedChallenge)
 
 // 2. Single Challenge Detail (Full Info for Solver Page)
 // :id acts as a variable (e.g., /challenges/65a...)
@@ -41,5 +44,10 @@ challengeRouter.post("/generate-ai", authenticate, authorize([Role.ADMIN]), gene
 challengeRouter.post("/run", authenticate, runCode)
 
 challengeRouter.post("/:id/hint", authenticate, getChallengeHint)
+
+challengeRouter.get("/daily/id", authenticate, getDailyChallengeId);
+
+
+
 
 export default challengeRouter
