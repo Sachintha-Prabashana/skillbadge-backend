@@ -134,13 +134,14 @@ export const getComments = async (req: Request, res: Response) => {
 export const addComment = async (req: AuthRequest, res: Response) => {
     try{
         const { id } = req.params // Post ID
-        const { content } = req.body
+        const { content, parentId } = req.body
         const userId = req.user?.sub
 
         const newComment = await Comment.create({
             post: id,
             author: userId,
             content,
+            parentId: parentId || null // If null, it's a main comment
         })
 
         // B. Populate Author Details (Vital for the UI to show name/avatar immediately)
