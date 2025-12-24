@@ -3,6 +3,7 @@ import { Post } from "../models/post.model";
 import { Comment } from "../models/comment.model";
 import {AuthRequest} from "../middleware/auth";
 import {io} from "../index";
+import {PostView} from "../models/view.model";
 
 // 1. GET FEED (With Filters & Search)
 export const getPosts = async (req: Request, res: Response) => {
@@ -106,12 +107,39 @@ export const toggleVote = async (req: AuthRequest, res: Response) => {
 export const getPostById = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const userId = req.user?.sub;
+        const userIp = req.ip || req.connection.remoteAddress; // Get IP address
 
         const post = await Post.findById(id).populate("author", "firstname lastname avatarUrl");
         if (!post) return res.status(404).json({ message: "Post not found" });
 
-        post.views += 1;
-        await post.save();
+        // --- 🛡️ INDUSTRY STANDARD CHECK ---
+        const queryConditions: any[] = [{ ip: userIp }]
+
+        if (userId) {
+            queryConditions.push({ user: userId });
+        }
+        const alreadyViewed = await PostView.findOne({
+            post: id,
+            $or: queryConditions
+        })
+
+        if (!alreadyViewed) {
+            // 2. If NOT viewed recently, create a View Record
+            try {
+                await PostView.create({
+                    post: id,
+                    user: userId,
+                    ip: userIp
+                });
+
+                // 3. Increment the real counter on the Post
+                post.views += 1;
+                await post.save();
+            } catch (ignored) {
+                // If a race condition happens (two clicks at exact same ms), ignore error
+            }
+        }
 
         res.json(post);
 
