@@ -2,7 +2,12 @@ import { Router } from "express"
 import { Role } from "../models/user.model"
 import { authenticate } from "../middleware/auth"
 import { requireRole as authorize } from "../middleware/role"
-import { createChallenge } from "../controllers/admin/admin.Challenge.controller";
+import {
+    createChallenge,
+    getAllChallenges
+
+    }
+from "../controllers/admin/admin.Challenge.controller";
 import { generateAIChallenge } from "../controllers/challenge.controller";
 import { getDashboardStats } from "../controllers/admin/admin.dashboard.controller";
 
@@ -10,8 +15,9 @@ const adminRouter = Router()
 
 adminRouter.use(authenticate, authorize([Role.ADMIN]))
 
-// Define admin routes here, e.g.:
 
+// Define admin routes here, e.g.:
+adminRouter.get("/challenges", getAllChallenges)
 adminRouter.post(
     "/challenges/create",
     authenticate,
