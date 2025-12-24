@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { createChallenge } from "../controllers/admin/adminChallenge.controller"
+import { createChallenge } from "../controllers/admin/admin.Challenge.controller"
 import {
     generateAIChallenge,
     getChallengeById, getChallengeHint,

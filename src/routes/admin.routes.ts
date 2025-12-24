@@ -2,8 +2,9 @@ import { Router } from "express"
 import { Role } from "../models/user.model"
 import { authenticate } from "../middleware/auth"
 import { requireRole as authorize } from "../middleware/role"
-import { createChallenge } from "../controllers/admin/adminChallenge.controller";
-import {generateAIChallenge} from "../controllers/challenge.controller";
+import { createChallenge } from "../controllers/admin/admin.Challenge.controller";
+import { generateAIChallenge } from "../controllers/challenge.controller";
+import { getDashboardStats } from "../controllers/admin/admin.dashboard.controller";
 
 const adminRouter = Router()
 
@@ -19,5 +20,6 @@ adminRouter.post(
 )
 
 adminRouter.post("/challenges/generate-ai", generateAIChallenge)
+adminRouter.get("/stats", getDashboardStats)
 
 export default adminRouter
