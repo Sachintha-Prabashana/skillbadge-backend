@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { createChallenge } from "../controllers/adminChallenge.controller"
+import { createChallenge } from "../controllers/admin/adminChallenge.controller"
 import {
     generateAIChallenge,
     getChallengeById, getChallengeHint,
@@ -15,12 +15,7 @@ import { getDailyChallengeId } from "../controllers/daily.challenge.controller";
 const challengeRouter = Router();
 
 // 1. Admin creates a challenge
-challengeRouter.post(
-    "/create", 
-    authenticate, 
-    authorize([Role.ADMIN]), 
-    createChallenge
-)
+
 
 challengeRouter.get("/",authenticate, getChallenges)
 
@@ -36,8 +31,6 @@ challengeRouter.post(
     authenticate, 
     submitSolution
 )
-
-challengeRouter.post("/generate-ai", authenticate, authorize([Role.ADMIN]), generateAIChallenge)
 
 // POST /api/challenges/run
 // Protected route because we don't want bots spamming the compiler
