@@ -5,13 +5,15 @@ import {
     createPost,
     toggleVote,
     getComments,
-    addComment
+    addComment,
+    getPostById
 } from "../controllers/discuss.controller";
 
 const discussRouter = Router();
 
 // Public Routes (Viewing)
 discussRouter.get("/", getPosts);
+discussRouter.get("/:id", getPostById)
 
 // Protected Routes (Creating & Voting)
 discussRouter.use(authenticate);

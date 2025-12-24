@@ -103,6 +103,23 @@ export const toggleVote = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const getPostById = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const post = await Post.findById(id).populate("author", "firstname lastname avatarUrl");
+        if (!post) return res.status(404).json({ message: "Post not found" });
+
+        post.views += 1;
+        await post.save();
+
+        res.json(post);
+
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching post" });
+    }
+}
+
 export const getComments = async (req: Request, res: Response) => {
     try {
         const { id } = req.params // Post ID
