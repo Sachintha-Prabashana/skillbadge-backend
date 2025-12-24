@@ -1,15 +1,24 @@
 import { Router } from "express";
 import { authenticate } from "../middleware/auth";
-import * as DiscussController from "../controllers/discuss.controller";
+import {
+    getPosts,
+    createPost,
+    toggleVote,
+    getComments,
+    addComment
+} from "../controllers/discuss.controller";
 
 const discussRouter = Router();
 
 // Public Routes (Viewing)
-discussRouter.get("/", DiscussController.getPosts);
+discussRouter.get("/", getPosts);
 
 // Protected Routes (Creating & Voting)
 discussRouter.use(authenticate);
-discussRouter.post("/", DiscussController.createPost);
-discussRouter.put("/:id/vote", DiscussController.toggleVote);
+discussRouter.post("/", createPost);
+discussRouter.put("/:id/vote", toggleVote);
+discussRouter.get("/:id/comments", getComments)
+discussRouter.post("/:id/comments", authenticate, addComment)
+
 
 export default discussRouter;

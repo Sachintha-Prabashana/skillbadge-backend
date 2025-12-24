@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Post } from "../models/post.model";
 import { Comment } from "../models/comment.model";
 import {AuthRequest} from "../middleware/auth";
+import {io} from "../index";
 
 // 1. GET FEED (With Filters & Search)
 export const getPosts = async (req: Request, res: Response) => {
@@ -101,3 +102,63 @@ export const toggleVote = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: "Vote failed" });
     }
 };
+
+export const getComments = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params // Post ID
+        const page = parseInt(req.query.page as string) || 1
+        const limit = 20; // load 20 comments per page
+
+        const totalComments = await Comment.countDocuments({ post: id })
+
+        const comments = await Comment.find({ post: id })
+            .populate("author", "firstname lastname avatarUrl") // Only fetch needed fields
+            .sort({ createdAt: -1 }) // Newest first
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        res.json({
+            comments,
+            currentPage: page,
+            totalPages: Math.ceil(totalComments / limit),
+            totalComments
+        })
+
+    } catch (error) {
+        console.error("Get Comments Error:", error);
+        res.status(500).json({ message: "Failed to load comments" });
+
+    }
+}
+
+export const addComment = async (req: AuthRequest, res: Response) => {
+    try{
+        const { id } = req.params // Post ID
+        const { content } = req.body
+        const userId = req.user?.sub
+
+        const newComment = await Comment.create({
+            post: id,
+            author: userId,
+            content,
+        })
+
+        // B. Populate Author Details (Vital for the UI to show name/avatar immediately)
+        await newComment.populate("author", "firstname lastname avatarUrl")
+
+        // C. Update Post Metadata (Optional but recommended)
+        // Bumps the post to the top of the feed because of new activity
+        await Post.findByIdAndUpdate(id, {
+            $inc: { commentCount: 1 }, // Increment cached count
+            lastCommentAt: new Date()
+        })
+
+        io.to(id).emit("receive_comment", newComment);
+
+        res.status(201).json(newComment);
+
+    } catch(error) {
+        console.error("Comment Error:", error)
+        res.status(500).json({ message: "Failed to post comment" })
+    }
+}
