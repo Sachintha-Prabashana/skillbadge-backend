@@ -10,6 +10,7 @@ import {
 from "../controllers/admin/admin.Challenge.controller";
 import { generateAIChallenge } from "../controllers/challenge.controller";
 import { getDashboardStats } from "../controllers/admin/admin.dashboard.controller";
+import {getAllUsers, toggleUserBan} from "../controllers/admin/admin.user.controller";
 
 const adminRouter = Router()
 
@@ -26,6 +27,11 @@ adminRouter.post(
 )
 
 adminRouter.post("/challenges/generate-ai", generateAIChallenge)
+
+
 adminRouter.get("/stats", getDashboardStats)
+
+adminRouter.get("/users",  getAllUsers)
+adminRouter.patch("/users/:id/ban", toggleUserBan)
 
 export default adminRouter

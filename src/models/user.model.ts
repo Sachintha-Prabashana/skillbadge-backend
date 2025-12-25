@@ -29,6 +29,9 @@ export interface IUser extends Document {
     googleId?: string; // <--- ADD THIS
     githubId?: string;
 
+    // --- STATUS FIELD ---
+    isActive: boolean; // <--- 1. ADDED TO INTERFACE
+
     title: string
     about: string
     country: string
@@ -59,6 +62,12 @@ const UserSchema = new Schema<IUser>({
     googleId: { type: String },
     githubId: { type: String },
 
+    isActive: {
+        type: Boolean,
+        default: true, // Default to true so new signups can login immediately
+        index: true    // Optional: Indexes make filtering by "active users" faster
+    },
+
     // --- NEW FIELDS ---
     title: { type: String, default: "" },
     about: { type: String, default: "" },
@@ -80,7 +89,7 @@ const UserSchema = new Schema<IUser>({
 
 
     points: { type: Number, default: 0, min: 0 },
-    badges: [{ 
+    badges: [{
         type: Schema.Types.ObjectId,
         ref: "Badge" }],
 
