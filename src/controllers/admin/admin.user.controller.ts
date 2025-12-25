@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { User, Role } from "../../models/user.model";
+import {AuthRequest} from "../../middleware/auth";
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try{
@@ -66,10 +67,14 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
 }
 
-export const toggleUserBan = async (req: Request, res: Response) => {
+export const toggleUserBan = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
         const { isActive } = req.body; // Expect true/false
+
+        if ( req.user.sub === id ) {
+            return res.status(403).json({ message: "You cannot ban/unban yourself" });
+        }
 
         const user = await User.findByIdAndUpdate(
             id,

@@ -11,6 +11,10 @@ from "../controllers/admin/admin.Challenge.controller";
 import { generateAIChallenge } from "../controllers/challenge.controller";
 import { getDashboardStats } from "../controllers/admin/admin.dashboard.controller";
 import {getAllUsers, toggleUserBan} from "../controllers/admin/admin.user.controller";
+import {
+    changeAdminPassword,
+    createNewAdmin
+} from "../controllers/admin/admin.setting.controller";
 
 const adminRouter = Router()
 
@@ -33,5 +37,9 @@ adminRouter.get("/stats", getDashboardStats)
 
 adminRouter.get("/users",  getAllUsers)
 adminRouter.patch("/users/:id/ban", toggleUserBan)
+
+// Admin Management
+adminRouter.post("/settings/admins",  createNewAdmin);
+adminRouter.patch("/settings/password", changeAdminPassword);
 
 export default adminRouter
