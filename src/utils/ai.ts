@@ -47,6 +47,7 @@ export const generateChallengeWithAI = async (topic: string) => {
               "description": "String (Markdown supported)",
               "difficulty": "EASY" | "MEDIUM" | "HARD", 
               "points": 10,
+              "categories": ["String"],
               "tips": ["Tip 1"],
               "allowedLanguages": ["python", "javascript", "java", "cpp"],
               "starterCode": [
@@ -62,8 +63,9 @@ export const generateChallengeWithAI = async (topic: string) => {
 
             CRITICAL INSTRUCTIONS:
             1. Description: Use Markdown. Include "### Example 1:" with code blocks and "### Constraints:".
+            2. Categories: Include 1-3 relevant tags (e.g., "Array", "Dynamic Programming", "String", "Math").
             
-            2. Starter Code (IMPORTANT): 
+            3. Starter Code (IMPORTANT): 
                - You MUST include the boilerplate to read from STDIN (Standard Input).
                - However, rename the solution function to match the problem context.
                - Example: If the problem is "Sum Array", name the function 'sumArray(arr)'.

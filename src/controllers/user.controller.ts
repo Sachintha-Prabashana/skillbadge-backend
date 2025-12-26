@@ -1,5 +1,5 @@
 import { Request, Response} from "express"
-import { User } from "../models/user.model"
+import {Role, User} from "../models/user.model"
 import { AuthRequest } from "../middleware/auth";
 import {Submission, SubmissionStatus} from "../models/submission.model";
 import { Challenge } from "../models/challenge.model";
@@ -9,7 +9,7 @@ import {checkAndAwardBadges} from "../service/badge.service";
 
 export const getLeaderboard = async (req: Request, res: Response) => {
     try {
-        const leaderboard = await User.find()
+        const leaderboard = await User.find({ roles: Role.STUDENT})
             .select("firstname lastname points currentStreak badges")
 
             // 3. Populate Badges (Join with Badge collection)

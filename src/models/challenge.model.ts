@@ -26,6 +26,8 @@ export interface IChallenge extends Document {
   tips: string[];      // Hints for students
   difficulty: Difficulty;
   points: number;
+
+  categories: string[];
   
   // Configuration
   allowedLanguages: string[]; // ["python", "javascript"]
@@ -40,6 +42,12 @@ const ChallengeSchema = new Schema<IChallenge>(
     tips: [{ type: String }], 
     difficulty: { type: String, enum: Object.values(Difficulty), default: Difficulty.EASY },
     points: { type: Number, default: 10 },
+    categories: {
+          type: [String],
+          required: true,
+          index: true,
+          default: []
+    },
     
     allowedLanguages: [{ type: String, required: true }],
     

@@ -77,35 +77,53 @@ export const getChallenges = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.sub;
 
-        // 1. Pagination Setup
+        // 1. Extract Query Params
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 10;
+        const search = req.query.search as string || "";
+        const difficulty = req.query.difficulty as string || "";
+        const category = req.query.category as string || "";
+
         const skip = (page - 1) * limit;
 
-        // 2. Fetch User Progress
-        const user = await User.findById(userId).select("completedChallenges");
+        // 2. Build the Mongoose Filter Object
+        const query: any = {};
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        // A. Search by Title (Regex)
+        if (search) {
+            query.title = { $regex: search, $options: "i" };
         }
 
-        const solvedSet = new Set(
-            user.completedChallenges.map((id) => id.toString())
-        );
+        // B. Filter by Difficulty
+        if (difficulty && difficulty !== "All") {
+            query.difficulty = difficulty;
+        }
 
-        // 3. Get Total Count
-        const totalChallenges = await Challenge.countDocuments();
+        // C. Filter by Category
+        if (category && category !== "All Topics") {
+            query.categories = category;
+        }
 
-        // 4. Fetch The Actual Data (Paginated)
-        //  Changed 'const' to 'let' so we can modify it
-        let challenges = await Challenge.find()
-            .select("title difficulty points allowedLanguages createdAt")
+        // 3. Fetch User Progress
+        const user = await User.findById(userId).select("completedChallenges");
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const solvedSet = new Set(user.completedChallenges.map((id) => id.toString()));
+
+        // 4. Get Total Count (MUST Use the query object to count correctly!)
+        const totalChallenges = await Challenge.countDocuments(query);
+
+        // 5. Fetch Actual Data
+        let challenges = await Challenge.find(query) // <--- PASS QUERY HERE
+            .select("title difficulty points categories allowedLanguages createdAt")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
             .lean();
 
-        // --- 🟢 5. NEW: PIN DAILY CHALLENGE TO TOP (Page 1 Only) ---
+        // --- 🟢 6. PIN DAILY CHALLENGE (Only on Page 1) ---
+        // Logic: We only pin it if it matches the current filters.
+        // Example: If user filters for "HARD", don't pin the "EASY" daily challenge.
         if (page === 1) {
             const today = new Date().toISOString().split('T')[0];
             const dailyRecord = await DailyChallenge.findOne({ date: today });
@@ -113,39 +131,42 @@ export const getChallenges = async (req: AuthRequest, res: Response) => {
             if (dailyRecord) {
                 const dailyIdStr = dailyRecord.challenge.toString();
 
-                // A. Check if the daily challenge is ALREADY in this page's list
+                // Check if the daily challenge is already in the fetched list
                 const existingIndex = challenges.findIndex(c => c._id.toString() === dailyIdStr);
 
                 if (existingIndex > -1) {
-                    // CASE 1: It's in the list (e.g., index 3). Move it to index 0.
-                    const [item] = challenges.splice(existingIndex, 1); // Remove it
-                    challenges.unshift(item); // Add to top
+                    // CASE A: It matches filters and is in the list. Move to top.
+                    const [item] = challenges.splice(existingIndex, 1);
+                    challenges.unshift(item);
                 } else {
-                    // CASE 2: It's NOT in the list (e.g., it's on Page 5). Fetch & Inject it.
-                    const dailyData = await Challenge.findById(dailyRecord.challenge)
-                        .select("title difficulty points allowedLanguages createdAt") // Must match fields above
+                    // CASE B: It's not in the list.
+                    // We must check if the Daily Challenge actually MATCHES the user's current filters
+                    // before injecting it.
+                    const dailyData = await Challenge.findOne({
+                        _id: dailyRecord.challenge,
+                        ...query // <--- Apply same filters to the daily challenge check
+                    })
+                        .select("title difficulty points categories allowedLanguages createdAt")
                         .lean();
 
+                    // Only inject if it exists (meaning it passed the filter check)
                     if (dailyData) {
-                        challenges.unshift(dailyData); // Add to top
+                        challenges.unshift(dailyData);
                     }
                 }
             }
         }
 
-
-        // 6. Merge Data & Map Status
+        // 7. Format Response
         const formattedChallenges = challenges.map((challenge) => ({
             _id: challenge._id,
             title: challenge.title,
             difficulty: challenge.difficulty,
             points: challenge.points,
-            category: challenge.allowedLanguages?.[0] || "General",
-            // Logic works for pinned item too because we solvedSet.has(challenge._id)
+            categories: challenge.categories || [], // Return categories
             status: solvedSet.has(challenge._id.toString()) ? "SOLVED" : "TODO"
         }));
 
-        // 7. Return Data
         res.status(200).json({
             data: formattedChallenges,
             pagination: {
@@ -163,25 +184,43 @@ export const getChallenges = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const getChallengeById = async (req: Request, res: Response) => {
+export const getChallengeById = async (req: AuthRequest, res: Response) => {
     try {
-        const { id } = req.params
+        const { id } = req.params;
+        const userId = req.user?.sub;
 
+        // 1. Fetch Challenge
+        // .lean() converts the Mongoose Document to a plain JavaScript object
+        // This is required so we can add the 'status' property to it later.
         const challenge = await Challenge.findById(id)
-            // 2. SELECT SPECIFIC FIELDS
-            // - We NEED: description (markdown), starterCode (for editor)
-            // - We HIDE: testCases (answers). We only send test cases during the 'Run' phase or if they are public examples.
-            .select("-testCases.output -testCases.isHidden")
+            .select("-testCases.output") // Hide outputs (keep inputs visible if needed for description)
+            .lean();
 
         if (!challenge) {
             return res.status(404).json({ message: "Challenge not found" });
         }
 
-        res.status(200).json(challenge)
+        // 2. Calculate Status
+        let status = "TODO";
+        if (userId) {
+            const user = await User.findById(userId).select("completedChallenges");
 
-    }catch(err){
-        console.error("Get Challenge Detail Error:", err)
-        res.status(500).json({ message: "Error fetching challenge" })
+            // Check if this challenge ID exists in the user's completed array
+            if (user && user.completedChallenges.some((cId: any) => cId.toString() === id)) {
+                status = "SOLVED";
+            }
+        }
+
+        // 3. Send Combined Response
+        // We spread (...) the challenge object and add the status field
+        res.status(200).json({
+            ...challenge,
+            status: status
+        });
+
+    } catch (err) {
+        console.error("Get Challenge Detail Error:", err);
+        res.status(500).json({ message: "Error fetching challenge" });
     }
 }
 
