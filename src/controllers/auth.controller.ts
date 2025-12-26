@@ -51,14 +51,24 @@ export const login = async (req: Request, res: Response) => {
         const existingUser = ( await User.findOne({ email })) as IUser | null
 
         if (!existingUser) {
-            return res.status(400).json({ message: "Invalid credentials" })
+            return res.status(400).json({ message: "Invalid email or password" })
         }
 
-        // --- NEW CHECK: Detect Google Users ---
+        // 2.  BANNED CHECK
         if (!existingUser.password) {
             return res.status(400).json({
-                message: "This account uses Google. Please sign in with the Google button."
-            })
+                error_code: "SOCIAL_LOGIN", // <--- Key for Frontend
+                provider: "Google",         // (Optional) If you track which provider
+                message: "This account uses Google Login. Please sign in with the Google button."
+            });
+        }
+
+        // 2. Banned Check
+        if (existingUser.isActive === false) {
+            return res.status(403).json({
+                error_code: "ACCOUNT_BANNED",
+                message: "Your account has been suspended."
+            });
         }
 
         const valid = await bcrypt.compare(password, existingUser.password)

@@ -97,7 +97,7 @@ export const getChallenges = async (req: AuthRequest, res: Response) => {
         const totalChallenges = await Challenge.countDocuments();
 
         // 4. Fetch The Actual Data (Paginated)
-        // 👇 Changed 'const' to 'let' so we can modify it
+        //  Changed 'const' to 'let' so we can modify it
         let challenges = await Challenge.find()
             .select("title difficulty points allowedLanguages createdAt")
             .sort({ createdAt: -1 })
