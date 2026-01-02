@@ -3,6 +3,7 @@ import { registerStudent, login, refreshToken, getMyProfile } from "../controlle
 import { authenticate } from "../middleware/auth"
 import passport from "passport";
 import {generateTokens} from "../utils/tokens";
+import { get } from "http";
 
 
 const router = Router()
@@ -12,6 +13,10 @@ router.post("/register", registerStudent)
 router.post("/login", login)
 router.get("/me", authenticate, getMyProfile)
 router.post("/refresh", refreshToken)
+
+const getClientUrl = () => {
+    return process.env.CLIENT_URL;
+};
 
 // --- 1. Start Login Flow ---
 // Frontend redirects here -> Server redirects to Google
@@ -33,9 +38,7 @@ router.get(
         // Assuming your generateTokens returns { accessToken, refreshToken }
         const { accessToken, refreshToken } = generateTokens(user);
 
-        // Redirect to React App with tokens in URL
-        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-        res.redirect(`${clientUrl}/auth-success?token=${accessToken}&refresh=${refreshToken}`);
+        res.redirect(`${getClientUrl()}/auth-success?token=${accessToken}&refresh=${refreshToken}`);
     }
 )
 
@@ -56,9 +59,7 @@ router.get(
         // Generate Tokens
         const { accessToken, refreshToken } = generateTokens(user);
 
-        // Redirect to Frontend
-        const clientUrl = "http://localhost:5173";
-        res.redirect(`${clientUrl}/auth-success?token=${accessToken}&refresh=${refreshToken}`);
+        res.redirect(`${getClientUrl()}/auth-success?token=${accessToken}&refresh=${refreshToken}`);
     }
 )
 
