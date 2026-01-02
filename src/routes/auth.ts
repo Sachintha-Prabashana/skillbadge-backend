@@ -15,9 +15,9 @@ router.get("/me", authenticate, getMyProfile)
 router.post("/refresh", refreshToken)
 
 const getClientUrl = () => {
-    return process.env.CLIENT_URL;
+    // Falls back to localhost if no ENV variable is found (e.g., on your laptop)
+    return process.env.CLIENT_URL || "http://localhost:5173";
 };
-
 // --- 1. Start Login Flow ---
 // Frontend redirects here -> Server redirects to Google
 router.get(
