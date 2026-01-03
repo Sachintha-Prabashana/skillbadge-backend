@@ -3,9 +3,10 @@ import { IUser, Role, User } from "../models/user.model"
 import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import dotenv from "dotenv"
-import { sign } from "crypto"
+import crypto, { sign } from "crypto"
 import { AuthRequest } from "../middleware/auth"
 import { signAccessToken, signRefreshToken } from "../utils/tokens"
+import { SendMailUtil } from "../utils/SendMailUtil"
 
 
 dotenv.config()
@@ -162,3 +163,91 @@ export const refreshToken = async (req: Request, res: Response) => {
         )
     }
 }
+
+export const forgotPassword = async (req: Request, res: Response) => {
+    try{
+        const user = await User.findOne({ email: req.body.email })
+
+        if (!user) {
+            // SECURITY: Standard practice is to send "success" even if email doesn't exist
+            // to prevent email enumeration.
+            return res.status(200).json({ success: true, data: "Email sent" });
+        }
+
+        const resetToken = user.getResetPasswordToken();
+        await user.save({ validateBeforeSave: false });
+
+        const clientUrl = process.env.CLIENT_URL
+        const resetUrl = `${clientUrl}/reset-password?token=${resetToken}`;
+
+        const message = `You are receiving this email because you (or someone else) has requested the reset of a password.\n\nPlease click the link below to reset your password:\n\n${resetUrl}`;
+
+        try {
+            // 👇 USING YOUR NEW CLASS HERE
+            await SendMailUtil.send({
+                email: user.email,
+                subject: "SkillBadge Password Reset",
+                message: message,
+                // html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>` // Optional HTML
+            });
+
+            res.status(200).json({ success: true, data: "Email sent" });
+
+        } catch (err) {
+            console.error("Email send failed:", err);
+            
+            // Clean up database if email fails
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save({ validateBeforeSave: false });
+
+            return res.status(500).json({ message: "Email could not be sent" });
+        }
+
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+
+    }
+}
+
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        // 1. Hash the token from URL to match the one in DB
+        const resetPasswordToken = crypto
+            .createHash("sha256")
+            .update(req.params.resettoken)
+            .digest("hex");
+
+        // 2. Find user with valid token AND valid expiration
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() },
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Invalid or expired token" });
+        }
+
+        // 3. Set new password
+        // ⚠️ IMPORTANT: Since you use manual hashing in registerStudent, we do it here too.
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(req.body.password, salt);
+
+        // 4. Clear reset fields (Token is single-use)
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            data: "Password updated successfully",
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};

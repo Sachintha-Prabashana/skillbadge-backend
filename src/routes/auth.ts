@@ -1,5 +1,13 @@
 import { Router } from "express"
-import { registerStudent, login, refreshToken, getMyProfile } from "../controllers/auth.controller"
+import { 
+    registerStudent, 
+    login, 
+    refreshToken, 
+    getMyProfile,
+    forgotPassword,
+    resetPassword
+} from "../controllers/auth.controller"
+  
 import { authenticate } from "../middleware/auth"
 import passport from "passport";
 import {generateTokens} from "../utils/tokens";
@@ -14,9 +22,12 @@ router.post("/login", login)
 router.get("/me", authenticate, getMyProfile)
 router.post("/refresh", refreshToken)
 
+router.post("/forgot-password", forgotPassword);       // Request the email
+router.put("/reset-password/:resettoken", resetPassword); // Update the password
+
 const getClientUrl = () => {
     // Falls back to localhost if no ENV variable is found (e.g., on your laptop)
-    return process.env.CLIENT_URL || "http://localhost:5173";
+    return process.env.CLIENT_URL;
 };
 // --- 1. Start Login Flow ---
 // Frontend redirects here -> Server redirects to Google

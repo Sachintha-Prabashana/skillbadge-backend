@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema} from "mongoose"
+import crypto from "crypto"
 
 export enum Role {
     ADMIN = "ADMIN",
@@ -47,6 +48,15 @@ export interface IUser extends Document {
     currentStreak: number
     longestStreak: number // Optional: good for "Personal Best"
     lastSolvedDate?: Date  // To calculate if streak continues or resets
+
+    // --- 2. ADD RESET FIELDS TO INTERFACE ---
+    resetPasswordToken?: string;
+    resetPasswordExpire?: Date;
+    
+    // Define the method signature so TypeScript knows it exists
+    getResetPasswordToken: () => string;
+
+
 }
 
 const UserSchema = new Schema<IUser>({
@@ -103,11 +113,33 @@ const UserSchema = new Schema<IUser>({
     // --- STREAK LOGIC FIELDS ---
     currentStreak: { type: Number, default: 0 },
     longestStreak: { type: Number, default: 0 },
-    lastSolvedDate: { type: Date } // Nullable initially
+    lastSolvedDate: { type: Date }, // Nullable initially
+
+    // --- 3. ADD RESET FIELDS TO SCHEMA ---
+    resetPasswordToken: { type: String },
+    resetPasswordExpire: { type: Date },
 
 }, {
     timestamps: true,
 
 })
+
+// --- 4. ADD THE INSTANCE METHOD ---
+UserSchema.methods.getResetPasswordToken = function () {
+    // Generate a random token (raw)
+    const resetToken = crypto.randomBytes(20).toString("hex");
+
+    // Hash the token and save to database field
+    this.resetPasswordToken = crypto
+        .createHash("sha256")
+        .update(resetToken)
+        .digest("hex");
+
+    // Set expiration (10 minutes)
+    this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+    // Return the raw token (to be sent via email)
+    return resetToken;
+};
 
 export const User = mongoose.model<IUser>("User", UserSchema)
