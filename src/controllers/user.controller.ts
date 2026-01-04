@@ -244,7 +244,7 @@ export const getMySolvedList = async (req: AuthRequest, res: Response) => {
         const solvedSubmissions = await Submission.find({
             user: userId,
             status: SubmissionStatus.PASSED
-        }).select("challengeId")
+        }).select("challenge");
 
         if (!solvedSubmissions.length) {
             return res.json([]); // Return empty list immediately if nothing solved
