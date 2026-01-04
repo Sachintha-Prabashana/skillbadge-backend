@@ -120,14 +120,17 @@ export const getMyProfile = async (req: AuthRequest, res: Response) => {
 }
 
 export const refreshToken = async (req: Request, res: Response) => {
-    try{
-        const { token } = req.body
-        if(!token) {
-            return res.status(401).json(
-                { message: "No token provided" 
 
-                }
-            )
+    const { token } = req.body
+    if(!token) {
+        return res.status(401).json({ message: "No token provided" })
+    }
+    try{
+        // 2. Decode the token (without verifying yet) to get the user ID
+        // This allows us to find the user even if the token is expired/invalid
+        const decoded = jwt.decode(token) as any;
+        if (!decoded || !decoded.sub) {
+            return res.status(403).json({ message: "Invalid token payload" });
         }
 
         const payload: any = jwt.verify(token, JWT_REFRESH_SECRET)
@@ -156,11 +159,14 @@ export const refreshToken = async (req: Request, res: Response) => {
             }
         })
 
-    }catch (error) {
-        console.error(error)
-        res.status(500).json(
-            { message: "Internal server error" }
-        )
+    }catch (error: any) {
+        if (error.name === "TokenExpiredError") {
+            console.log("Refresh token expired:", error);
+            return res.status(403).json({ message: "Refresh token expired. Please login again." });
+
+        }
+        console.error("Error during token refresh:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 
