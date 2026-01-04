@@ -1,8 +1,8 @@
 import { Request, Response} from "express"
 import {Role, User} from "../models/user.model"
 import { AuthRequest } from "../middleware/auth";
-import {Submission, SubmissionStatus} from "../models/submission.model";
-import { Challenge } from "../models/challenge.model";
+import { Submission, SubmissionStatus } from "../models/submission.model";
+import { Challenge, Difficulty } from "../models/challenge.model";
 import {uploadToCloudinary} from "../utils/cloudinary";
 import {BADGE_MANIFEST} from "../config/seeds/badgeManifest";
 import {checkAndAwardBadges} from "../service/badge.service";
@@ -43,7 +43,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
 
         if (!user) return res.status(404).json({message: "User not found"});
 
-        // --- 🟢 NEW: BADGE HYDRATION LOGIC ---
+        // ---  NEW: BADGE HYDRATION LOGIC ---
         // We merge the DB data with the Manifest data
         const enrichedBadges = (user.badges || []).map((userBadge: any) => {
             // Find the visual details in the manifest based on the badge name
@@ -143,7 +143,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
             languages: languageStats.map(l => ({name: l._id, problems: l.count})),
             submissionCalendar: calendar,
 
-            // ✅ Return the ENRICHED badges, not the raw DB ones
+            //  Return the ENRICHED badges, not the raw DB ones
             badges: enrichedBadges,
 
             recentActivity: recentActivity.map(sub => ({
@@ -234,5 +234,77 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Internal server error" })
+    }
+}
+
+export const getMySolvedList = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user?.sub;
+
+        const solvedSubmissions = await Submission.find({
+            user: userId,
+            status: SubmissionStatus.PASSED
+        }).select("challengeId")
+
+        if (!solvedSubmissions.length) {
+            return res.json([]); // Return empty list immediately if nothing solved
+        }
+
+        // 2. Extract unique Challenge IDs using Set
+        const uniqueChallengeIds = [...new Set(solvedSubmissions.map(s => s.challenge.toString()))];
+
+        // 3. Fetch Challenge Details
+        const challenges = await Challenge.find({
+            _id: { $in: uniqueChallengeIds }
+        }).select("title difficulty category points");
+
+        res.json(challenges);
+
+    } catch (error) {
+        console.error("Error fetching solved list:", error);
+        res.status(500).json({ message: "Failed to fetch solved problems" });
+    }
+}
+
+export const getUserProgress = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user?.sub;
+        const solvedSubmissions = await Submission.find({
+            user: userId,
+            status: SubmissionStatus.PASSED
+        }).select("challenge createdAt");
+
+        // 2. Calculate Counts (Unique Problems Only)
+        const uniqueSolvedIds = [...new Set(solvedSubmissions.map(s => s.challenge.toString()))];
+
+        // Fetch problem details to categorize by difficulty
+        const solvedProblems = await Challenge.find({ _id: { $in: uniqueSolvedIds } }).select("difficulty");
+
+        const stats = {
+            total: uniqueSolvedIds.length,
+            easy: solvedProblems.filter(p => p.difficulty === Difficulty.EASY).length,
+            medium: solvedProblems.filter(p => p.difficulty === Difficulty.MEDIUM).length,
+            hard: solvedProblems.filter(p => p.difficulty === Difficulty.HARD).length
+        };
+
+        // 3. Generate Heatmap Data (Count submissions per day)
+        // Format: { "2023-10-25": 4, "2023-10-26": 1 }
+        const heatmap: Record<string, number> = {};
+        solvedSubmissions.forEach(sub => {
+            const date = sub.createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
+            heatmap[date] = (heatmap[date] || 0) + 1;
+        });
+
+        // 4. Fetch Recent Activity (Last 5 submissions, passed or failed)
+        const recentActivity = await Submission.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate("challenge", "title difficulty"); // Populate problem details
+
+        res.json({ stats, heatmap, recentActivity });
+
+    } catch (error) {
+        console.error("Progress Error:", error);
+        res.status(500).json({ message: "Failed to fetch progress" });
     }
 }
