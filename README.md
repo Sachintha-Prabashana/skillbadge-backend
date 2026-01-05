@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 | **🚀 Live Application** | 🟢 Up | [**Visit Frontend App**](https://skillbadge-frontend.vercel.app) |
-| **📡 Backend API** | 🟢 Up | [**Base API URL**](https://controlled-karina-spsolutions-ea693d09.koyeb.app/api/v1) |
+| **📡 Backend API** | 🟢 Up | [**Base API URL**](https://controlled-karina-spsolutions-ea693d09.koyeb.app/) |
 | **💻 Frontend Repo** | 📂 Code | [**View Frontend Source**](https://github.com/Sachintha-Prabashana/skillbadge-frontend) |
 
 ---
