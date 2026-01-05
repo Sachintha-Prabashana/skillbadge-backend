@@ -502,36 +502,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Support
 
-### Documentation
-
-- [API Documentation](https://your-api-docs.com)
-- [User Guide](https://your-user-guide.com)
-
 ### Get Help
 
-- 📧 Email: support@skillbadge.com
-- 💬 Discord: [Join our community](https://discord.gg/yourserver)
-- 🐦 Twitter: [@SkillBadgePlatform](https://twitter.com/yourhandle)
-
-### Report Issues
-
-Found a bug? [Open an issue](https://github.com/your-username/skill-badge-platform-backend/issues)
-
----
-
+- 📧 Email: sachinthaprabhashana2003@gmail.com.com
+  
 ## 🙏 Acknowledgments
 
 - Express.js community
 - MongoDB team
 - All contributors who helped shape this project
-
----
-
-## 📊 Project Status
-
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-85%25-green)
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
 
 ---
 
