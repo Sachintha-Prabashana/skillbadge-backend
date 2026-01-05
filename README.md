@@ -6,7 +6,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[🚀 Demo](https://your-demo-link.com) | [📖 API Docs](https://your-api-docs.com) | [🐛 Report Bug](https://github.com/your-repo/issues) | [✨ Request Feature](https://github.com/your-repo/issues)
+| **🚀 Live Application** | 🟢 Up | [**Visit Frontend App**](https://skillbadge-frontend.vercel.app) |
+| **📡 Backend API** | 🟢 Up | [**Base API URL**](https://controlled-karina-spsolutions-ea693d09.koyeb.app/api/v1) |
+| **💻 Frontend Repo** | 📂 Code | [**View Frontend Source**](https://github.com/Sachintha-Prabashana/skillbadge-frontend) |
 
 ---
 
