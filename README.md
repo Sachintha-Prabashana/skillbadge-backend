@@ -253,8 +253,8 @@ You'll need accounts and API keys for:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/skill-badge-platform-backend.git
-cd skill-badge-platform-backend
+git clone https://github.com/Sachintha-Prabashana/skillbadge-backend.git
+cd skillbadge-backend
 ````
 
 ### 2. Install Dependencies
