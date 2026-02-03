@@ -38,7 +38,7 @@ export const startInterview = async (req: AuthRequest, res: Response) => {
 
         // Generate the first question using the system prompt
         const completion = await openRouterClient.chat.completions.create({
-            model: "meta-llama/llama-3-8b-instruct:free",
+            model: "meta-llama/llama-3.2-3b-instruct:free",
             messages: [{ role: "system", content: systemPrompt }]
         });
 
@@ -84,7 +84,7 @@ export const chatInterview = async (req: AuthRequest, res: Response) => {
 
         // 4. Call AI for Feedback + Next Question
         const completion = await openRouterClient.chat.completions.create({
-            model: "meta-llama/llama-3-8b-instruct:free",
+            model: "meta-llama/llama-3.2-3b-instruct:free",
             messages: history
         });
 
