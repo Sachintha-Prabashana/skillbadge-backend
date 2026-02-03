@@ -7,9 +7,10 @@ import { openRouterClient } from "../utils/openrouter";
 
 async function getAIResponse(messages: any[]) {
     const models = [
-        "google/gemini-2.0-flash-lite-preview-02-05:free", // 1. Google (Very Fast)
-        "meta-llama/llama-3.2-3b-instruct:free",           // 2. Llama (Backup)
-        "deepseek/deepseek-r1-distill-llama-70b:free"      // 3. DeepSeek (Final Backup)
+        "google/gemini-2.0-flash-thinking-exp:free", // 1. Google (Very Fast & Smart)
+        "meta-llama/llama-3-8b-instruct:free",       // 2. Llama 3 (Very Stable)
+        "deepseek/deepseek-r1-distill-llama-70b:free", // 3. DeepSeek (High Quality)
+        "microsoft/phi-3-mini-128k-instruct:free"    // 4. Microsoft (Backup)     // 3. DeepSeek (Final Backup)
     ];
 
     for (const model of models) {
