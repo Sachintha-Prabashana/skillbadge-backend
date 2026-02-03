@@ -6,7 +6,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[🚀 Demo](https://your-demo-link.com) | [📖 API Docs](https://your-api-docs.com) | [🐛 Report Bug](https://github.com/your-repo/issues) | [✨ Request Feature](https://github.com/your-repo/issues)
+| **🚀 Live Application** | 🟢 Up | [**Visit Frontend App**](https://skillbadge-frontend.vercel.app) |
+| **📡 Backend API** | 🟢 Up | [**Base API URL**](https://controlled-karina-spsolutions-ea693d09.koyeb.app/) |
+| **💻 Frontend Repo** | 📂 Code | [**View Frontend Source**](https://github.com/Sachintha-Prabashana/skillbadge-frontend) |
 
 ---
 
@@ -226,74 +228,6 @@ skill-badge-platform-backend/
 │   └── ...
 ```
 
-skill-badge-platform-backend/
-├── src/
-│ ├── config/ # Configuration files
-│ │ ├── seeds/ # Seed data manifests
-│ │ │ └── badgeManifest.ts
-│ │ ├── cloudinary.ts # Cloudinary setup
-│ │ └── passport.ts # OAuth strategies
-│ │
-│ ├── controllers/ # Request handlers
-│ │ ├── admin/ # Admin specific controllers
-│ │ ├── auth.controller.ts
-│ │ ├── challenge.controller.ts
-│ │ ├── daily.challenge.controller.ts
-│ │ ├── discuss.controller.ts
-│ │ ├── submission.controller.ts
-│ │ └── user.controller.ts
-│ │
-│ ├── middleware/ # Custom middleware
-│ │ ├── auth.ts # Authentication middleware
-│ │ ├── role.ts # Role-based access control
-│ │ └── upload.ts # File upload handling
-│ │
-│ ├── models/ # Mongoose schemas
-│ │ ├── badge.model.ts
-│ │ ├── challenge.model.ts
-│ │ ├── comment.model.ts
-│ │ ├── contest.model.ts
-│ │ ├── dailyChallenge.model.ts
-│ │ ├── post.model.ts
-│ │ ├── submission.model.ts
-│ │ ├── user.model.ts
-│ │ └── view.model.ts
-│ │
-│ ├── routes/ # API route definitions
-│ │ ├── admin.routes.ts
-│ │ ├── auth.ts
-│ │ ├── challenge.ts
-│ │ ├── discuss.ts
-│ │ └── user.ts
-│ │
-│ ├── scripts/ # Utility scripts
-│ │ ├── seedAdmin.ts # Admin user seeding
-│ │ └── seedBadges.ts # Badge seeding
-│ │
-│ ├── service/ # Business logic layer
-│ │ ├── ai.service.ts # AI integration service
-│ │ └── badge.service.ts # Badge management service
-│ │
-│ ├── utils/ # Utility functions
-│ │ ├── ai.ts
-│ │ ├── cloudinary.ts
-│ │ ├── piston.ts
-│ │ ├── SendMailUtil.ts
-│ │ └── tokens.ts
-│ │
-│ ├── index.ts # Application entry point
-│ └── ...
-│
-├── .env.example # Environment variables template
-├── .gitignore
-├── package.json
-├── tsconfig.json # TypeScript configuration
-└── README.md
-
-````
-
----
-
 ## 📋 Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -321,8 +255,8 @@ You'll need accounts and API keys for:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/skill-badge-platform-backend.git
-cd skill-badge-platform-backend
+git clone https://github.com/Sachintha-Prabashana/skillbadge-backend.git
+cd skillbadge-backend
 ````
 
 ### 2. Install Dependencies
@@ -570,36 +504,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Support
 
-### Documentation
-
-- [API Documentation](https://your-api-docs.com)
-- [User Guide](https://your-user-guide.com)
-
 ### Get Help
 
-- 📧 Email: support@skillbadge.com
-- 💬 Discord: [Join our community](https://discord.gg/yourserver)
-- 🐦 Twitter: [@SkillBadgePlatform](https://twitter.com/yourhandle)
-
-### Report Issues
-
-Found a bug? [Open an issue](https://github.com/your-username/skill-badge-platform-backend/issues)
-
----
-
+- 📧 Email: sachinthaprabhashana2003@gmail.com.com
+  
 ## 🙏 Acknowledgments
 
 - Express.js community
 - MongoDB team
 - All contributors who helped shape this project
-
----
-
-## 📊 Project Status
-
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-85%25-green)
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
 
 ---
 
