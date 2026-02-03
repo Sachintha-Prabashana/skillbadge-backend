@@ -3,6 +3,34 @@ import { Interview } from "../models/interview.model";
 import { AuthRequest } from "../middleware/auth";
 import { openRouterClient } from "../utils/openrouter";
 
+// src/controllers/interview.controller.ts
+
+async function getAIResponse(messages: any[]) {
+    const models = [
+        "google/gemini-2.0-flash-lite-preview-02-05:free", // 1. Google (Very Fast)
+        "meta-llama/llama-3.2-3b-instruct:free",           // 2. Llama (Backup)
+        "deepseek/deepseek-r1-distill-llama-70b:free"      // 3. DeepSeek (Final Backup)
+    ];
+
+    for (const model of models) {
+        try {
+            console.log(`Trying model: ${model}...`);
+            const completion = await openRouterClient.chat.completions.create({
+                model: model,
+                messages: messages
+            });
+            return completion.choices[0]?.message?.content || "No response generated.";
+        } catch (error: any) {
+            if (error.status === 429 || error.status === 503) {
+                console.warn(`Model ${model} failed (Rate Limit). Switching to next...`);
+                continue;
+            }
+            throw error;
+        }
+    }
+    throw new Error("All AI models are currently busy. Please try again later.");
+}
+
 // 1 . start a new interview session
 
 export const startInterview = async (req: AuthRequest, res: Response) => {
@@ -36,13 +64,7 @@ export const startInterview = async (req: AuthRequest, res: Response) => {
             messages: [{ role: "system", content: systemPrompt }]
         });
 
-        // Generate the first question using the system prompt
-        const completion = await openRouterClient.chat.completions.create({
-            model: "meta-llama/llama-3.2-3b-instruct:free",
-            messages: [{ role: "system", content: systemPrompt }]
-        });
-
-        const firstQuestion = completion.choices[0]?.message?.content || `Welcome to your ${level} ${stream} interview. Ready?`;
+        const firstQuestion = await getAIResponse([{ role: "system", content: systemPrompt }]);
 
         // Save the first question to the interview messages
         interview.messages.push({ role: "assistant", content: firstQuestion });
@@ -64,6 +86,7 @@ export const startInterview = async (req: AuthRequest, res: Response) => {
 export const chatInterview = async (req: AuthRequest, res: Response) => {
     try {
         const { interviewId, userAnswer } = req.body;
+        const QUESTION_LIMIT = 10;
 
         // validate interview ownership
         const interview = await Interview.findOne({ _id: interviewId, user: req.user?.sub });
@@ -76,27 +99,51 @@ export const chatInterview = async (req: AuthRequest, res: Response) => {
         // 2. Save User Answer
         interview.messages.push({ role: "user", content: userAnswer });
 
-        // 3. Prepare Context for AI (Map to API format)
-        const history = interview.messages.map(m => ({
-            role: m.role as "system" | "user" | "assistant",
-            content: m.content
-        }));
+        // 3. Count Questions (User messages count)
+        const answerCount = interview.messages.filter(m => m.role === "user").length;
+        let isFinalRound = false;
+        let systemInstruction = "";
 
-        // 4. Call AI for Feedback + Next Question
-        const completion = await openRouterClient.chat.completions.create({
-            model: "meta-llama/llama-3.2-3b-instruct:free",
-            messages: history
-        });
+        // 4. Determine AI Instruction (Logic for ending interview)
+        if (answerCount >= QUESTION_LIMIT) {
+            isFinalRound = true;
+            systemInstruction = `
+                This is the final answer (${answerCount}/${QUESTION_LIMIT}).
+                STOP asking questions.
+                Provide a "Final Feedback Report" with Score (0-100), Strengths, and Weaknesses.
+                End with "Interview Completed."
+            `;
+        } else {
+            systemInstruction = `
+                The candidate has answered question ${answerCount}/${QUESTION_LIMIT}.
+                Give brief feedback and ask the NEXT question related to ${interview.stream}.
+            `;
+        }
 
-        const aiReply = completion.choices[0]?.message?.content || "Let's move to the next topic.";
+        // 5. Prepare History for AI
+        const history = [
+            ...interview.messages.map(m => ({
+                role: m.role as "system" | "user" | "assistant",
+                content: m.content
+            })),
+            { role: "system", content: systemInstruction }
+        ];
+
+        const aiReply = await getAIResponse(history);
 
         // 5. Save AI Reply
         interview.messages.push({ role: "assistant", content: aiReply });
+
+        if (isFinalRound) {
+            interview.status = "COMPLETED";
+        }
         await interview.save();
 
         res.json({
             message: aiReply,
-            history: interview.messages // Optional: return full history if needed by frontend
+            currentQuestion: answerCount + 1,
+            isCompleted: isFinalRound,
+            history: interview.messages
         });
     } catch (error) {
         console.error("Chat Error:", error);
