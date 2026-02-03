@@ -13,6 +13,7 @@ import passport from "passport";
 import "./config/passport";
 import adminRouter from "./routes/admin.routes";
 import discussRouter from "./routes/discuss";
+import interviewRoute from "./routes/interview";
 
 
 dotenv.config();
@@ -65,6 +66,7 @@ app.use("/api/v1/challenges", challengeRouter)
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/admin", adminRouter)
 app.use("/api/v1/discuss", discussRouter)
+app.use("/api/v1/interview", interviewRoute)
 
 mongoose
   .connect(MONGO_URI)

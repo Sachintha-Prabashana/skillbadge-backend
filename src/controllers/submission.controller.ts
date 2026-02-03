@@ -64,7 +64,7 @@ export const runCode = async (req: AuthRequest, res: Response) => {
                 const user = await User.findById(userId);
 
                 if (user) {
-                    // --- 🟢 START: DAILY CHALLENGE STREAK LOGIC ---
+                    // ---  START: DAILY CHALLENGE STREAK LOGIC ---
                     const todayStr = new Date().toISOString().split('T')[0];
                     const todaysDaily = await DailyChallenge.findOne({ date: todayStr });
 
