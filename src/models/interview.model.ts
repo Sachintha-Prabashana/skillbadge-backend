@@ -19,7 +19,7 @@ const interviewSchema = new Schema({
         {
             role: {
                 type: String,
-                enum: ["System", "user", "assistant"],
+                enum: ["system", "user", "assistant"],
                 required: true
             },
             content: { type: String, required: true },
