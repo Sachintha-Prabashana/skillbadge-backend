@@ -189,7 +189,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
         const message = `You are receiving this email because you (or someone else) has requested the reset of a password.\n\nPlease click the link below to reset your password:\n\n${resetUrl}`;
 
         try {
-            // 👇 USING YOUR NEW CLASS HERE
+            //  USING YOUR NEW CLASS HERE
             await SendMailUtil.send({
                 email: user.email,
                 subject: "SkillBadge Password Reset",
@@ -223,7 +223,7 @@ export const resetPassword = async (req: Request, res: Response) => {
         // 1. Hash the token from URL to match the one in DB
         const resetPasswordToken = crypto
             .createHash("sha256")
-            .update(req.params.resettoken)
+            .update(req.params.resettoken as string)
             .digest("hex");
 
         // 2. Find user with valid token AND valid expiration
@@ -237,7 +237,7 @@ export const resetPassword = async (req: Request, res: Response) => {
         }
 
         // 3. Set new password
-        // ⚠️ IMPORTANT: Since you use manual hashing in registerStudent, we do it here too.
+        // IMPORTANT: Since you use manual hashing in registerStudent, we do it here too.
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(req.body.password, salt);
 
