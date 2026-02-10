@@ -1,39 +1,57 @@
 import { Request, Response } from 'express';
+import axios from 'axios';
 import { Interview } from "../models/interview.model";
 import { AuthRequest } from "../middleware/auth";
-import { openRouterClient } from "../utils/openrouter";
+import dotenv from "dotenv";
 
-// src/controllers/interview.controller.ts
+dotenv.config();
 
-async function getAIResponse(messages: any[]) {
-    const models = [
-        "google/gemini-2.0-flash-thinking-exp:free", // 1. Google (Very Fast & Smart)
-        "meta-llama/llama-3-8b-instruct:free",       // 2. Llama 3 (Very Stable)
-        "deepseek/deepseek-r1-distill-llama-70b:free", // 3. DeepSeek (High Quality)
-        "microsoft/phi-3-mini-128k-instruct:free"    // 4. Microsoft (Backup)     // 3. DeepSeek (Final Backup)
-    ];
+// ️ CONFIGURATION
 
-    for (const model of models) {
-        try {
-            console.log(`Trying model: ${model}...`);
-            const completion = await openRouterClient.chat.completions.create({
-                model: model,
-                messages: messages
-            });
-            return completion.choices[0]?.message?.content || "No response generated.";
-        } catch (error: any) {
-            if (error.status === 429 || error.status === 503) {
-                console.warn(`Model ${model} failed (Rate Limit). Switching to next...`);
-                continue;
-            }
-            throw error;
-        }
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY as string;
+const MODEL_NAME = "gemini-flash-latest";
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
+
+//  HELPER: Axios Gemini Response Generator
+async function getGeminiResponse(prompt: string) {
+    if (!GEMINI_API_KEY) {
+        throw new Error("Gemini API Key is missing in .env");
     }
-    throw new Error("All AI models are currently busy. Please try again later.");
+
+    try {
+        const response = await axios.post(
+            API_URL,
+            {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    maxOutputTokens: 1000,
+                    temperature: 0.7
+                }
+            },
+            {
+                headers: { "Content-Type": "application/json" },
+                timeout: 60000
+            }
+        );
+
+        const candidate = response.data?.candidates?.[0];
+        const text = candidate?.content?.parts?.[0]?.text;
+
+        if (!text) {
+            throw new Error("AI returned empty response.");
+        }
+
+        return text.trim();
+
+    } catch (error: any) {
+        console.error("Gemini Axios Error:", error.response?.data || error.message);
+
+        const errorMessage = error.response?.data?.error?.message || "Failed to connect to Gemini API";
+        throw new Error(errorMessage);
+    }
 }
 
-// 1 . start a new interview session
-
+// 1. START INTERVIEW
 export const startInterview = async (req: AuthRequest, res: Response) => {
     try {
         const { stream, difficulty } = req.body;
@@ -65,9 +83,8 @@ export const startInterview = async (req: AuthRequest, res: Response) => {
             messages: [{ role: "system", content: systemPrompt }]
         });
 
-        const firstQuestion = await getAIResponse([{ role: "system", content: systemPrompt }]);
+        const firstQuestion = await getGeminiResponse(systemPrompt);
 
-        // Save the first question to the interview messages
         interview.messages.push({ role: "assistant", content: firstQuestion });
         await interview.save();
 
@@ -78,34 +95,31 @@ export const startInterview = async (req: AuthRequest, res: Response) => {
             message: firstQuestion
         });
 
-    } catch (error) {
-        console.error("Start Interview Error:", error);
-        res.status(500).json({ message: "Failed to initialize interview" });
+    } catch (error: any) {
+        console.error("Start Interview Error:", error.message);
+        res.status(500).json({ message: "Failed to initialize interview", details: error.message });
     }
 }
 
+// 2. CHAT INTERVIEW
 export const chatInterview = async (req: AuthRequest, res: Response) => {
     try {
         const { interviewId, userAnswer } = req.body;
         const QUESTION_LIMIT = 10;
 
-        // validate interview ownership
         const interview = await Interview.findOne({ _id: interviewId, user: req.user?.sub });
-        if (!interview ) return res.status(404).json({ message: "Session not found" });
+        if (!interview) return res.status(404).json({ message: "Session not found" });
 
         if (interview.status === "COMPLETED") {
-            return res.status(400).json({ message: "This interview is already finished." });
+            return res.status(400).json({ message: "Interview already finished." });
         }
 
-        // 2. Save User Answer
         interview.messages.push({ role: "user", content: userAnswer });
 
-        // 3. Count Questions (User messages count)
         const answerCount = interview.messages.filter(m => m.role === "user").length;
         let isFinalRound = false;
         let systemInstruction = "";
 
-        // 4. Determine AI Instruction (Logic for ending interview)
         if (answerCount >= QUESTION_LIMIT) {
             isFinalRound = true;
             systemInstruction = `
@@ -121,18 +135,22 @@ export const chatInterview = async (req: AuthRequest, res: Response) => {
             `;
         }
 
-        // 5. Prepare History for AI
-        const history = [
-            ...interview.messages.map(m => ({
-                role: m.role as "system" | "user" | "assistant",
-                content: m.content
-            })),
-            { role: "system", content: systemInstruction }
-        ];
+        const conversationHistory = interview.messages.map(m => {
+            const speaker = m.role === 'user' ? 'Candidate' : (m.role === 'assistant' ? 'Interviewer' : 'System');
+            return `${speaker}: ${m.content}`;
+        }).join("\n");
 
-        const aiReply = await getAIResponse(history);
+        const fullPrompt = `
+            ${conversationHistory}
+            
+            ---
+            SYSTEM INSTRUCTION:
+            ${systemInstruction}
+        `;
 
-        // 5. Save AI Reply
+        const aiReply = await getGeminiResponse(fullPrompt);
+
+        // 6. Save & Response
         interview.messages.push({ role: "assistant", content: aiReply });
 
         if (isFinalRound) {
@@ -143,11 +161,11 @@ export const chatInterview = async (req: AuthRequest, res: Response) => {
         res.json({
             message: aiReply,
             currentQuestion: answerCount + 1,
-            isCompleted: isFinalRound,
-            history: interview.messages
+            isCompleted: isFinalRound
         });
-    } catch (error) {
-        console.error("Chat Error:", error);
-        res.status(500).json({ message: "Error processing your answer" });
+
+    } catch (error: any) {
+        console.error("Chat Error:", error.message);
+        res.status(500).json({ message: "Error processing your answer", details: error.message });
     }
 }
