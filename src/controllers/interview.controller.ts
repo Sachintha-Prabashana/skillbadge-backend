@@ -104,7 +104,7 @@ export const startInterview = async (req: AuthRequest, res: Response) => {
 // 2. CHAT INTERVIEW
 export const chatInterview = async (req: AuthRequest, res: Response) => {
     try {
-        const { interviewId, userAnswer } = req.body;
+        const { interviewId, userAnswer, stop } = req.body;
         const QUESTION_LIMIT = 10;
 
         const interview = await Interview.findOne({ _id: interviewId, user: req.user?.sub });
@@ -114,24 +114,35 @@ export const chatInterview = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ message: "Interview already finished." });
         }
 
-        interview.messages.push({ role: "user", content: userAnswer });
+        if (userAnswer) {
+            interview.messages.push({ role: "user", content: userAnswer });
+        }
 
         const answerCount = interview.messages.filter(m => m.role === "user").length;
         let isFinalRound = false;
         let systemInstruction = "";
 
-        if (answerCount >= QUESTION_LIMIT) {
+        if (stop || answerCount >= QUESTION_LIMIT) {
             isFinalRound = true;
             systemInstruction = `
-                This is the final answer (${answerCount}/${QUESTION_LIMIT}).
-                STOP asking questions.
-                Provide a "Final Feedback Report" with Score (0-100), Strengths, and Weaknesses.
-                End with "Interview Completed."
+                The interview is ENDING now.
+                (Reason: ${stop ? "Candidate requested to stop early" : "Question limit reached"}).
+                
+                DO NOT ASK ANY MORE QUESTIONS.
+                
+                Provide a structured "Final Feedback Report":
+                1. Overall Score (0-100)
+                2. Key Strengths
+                3. Areas for Improvement
+                
+                End the response clearly with "Interview Completed".
             `;
         } else {
             systemInstruction = `
                 The candidate has answered question ${answerCount}/${QUESTION_LIMIT}.
-                Give brief feedback and ask the NEXT question related to ${interview.stream}.
+                1. Provide brief feedback on the answer.
+                2. Ask the NEXT technical question related to ${interview.stream}.
+                3. Keep it professional and concise.
             `;
         }
 
@@ -160,7 +171,8 @@ export const chatInterview = async (req: AuthRequest, res: Response) => {
 
         res.json({
             message: aiReply,
-            currentQuestion: answerCount + 1,
+            currentQuestion: answerCount,
+            totalQuestions: QUESTION_LIMIT,
             isCompleted: isFinalRound
         });
 

@@ -22,8 +22,7 @@ export const generateChallengeWithAI = async (topic: string) => {
     // Priority List: Free & Reliable models
     const modelsToTry = [
         "meta-llama/llama-3.3-70b-instruct:free",
-        "google/gemini-2.0-flash-exp:free",
-        "mistralai/mistral-nemo:free"
+       "gemini-flash-latest"
     ];
 
     for (const model of modelsToTry) {
